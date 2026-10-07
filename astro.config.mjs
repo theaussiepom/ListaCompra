@@ -12,7 +12,7 @@ const isHAPanel = process.env.HA_PANEL === 'true';
 const base = isPages
   ? '/ListaCompra'
   : isHAPanel
-    ? '/tucompra_static/app'
+    ? '/tucompra_static/app/'
     : undefined;
 
 export default defineConfig({

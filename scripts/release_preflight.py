@@ -29,7 +29,7 @@ def execute_checks(root: Path, output: Path, python: str, report: dict, runner=s
         ("types", ["npm", "run", "check"]),
         ("catalogue", ["npm", "run", "export:catalog"]),
         ("node-tests", ["node", "--import", "tsx", "--test", *[str(p.relative_to(root)) for p in sorted((root / "tests").glob("*.test.mjs"))]]),
-        ("python-tests", [python, "-m", "pytest", "tests/", "-q"]),
+        ("python-tests", [python, "-m", "pytest", "tests/", "-q", f"--basetemp={root.parent / 'pytest'}"]),
         ("ha-build", ["npm", "run", "build:ha"]),
     ]
     if len(commands[3][1]) == 4:

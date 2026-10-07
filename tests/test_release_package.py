@@ -262,6 +262,14 @@ def test_package_rejects_missing_referenced_asset(candidate, tmp_path):
         produce(candidate, tmp_path)
 
 
+@pytest.mark.parametrize("asset", ["favicon.svg", "manifest.webmanifest"])
+def test_package_rejects_ha_base_without_separator(candidate, tmp_path, asset):
+    path = candidate / release_package.INTEGRATION / "panel/app/index.html"
+    path.write_text(path.read_text().replace("</head>", f'<link href="/tucompra_static/app{asset}"></head>'))
+    with pytest.raises(release_package.PackageError, match="incorrect HA base"):
+        produce(candidate, tmp_path)
+
+
 def test_package_rejects_corrupt_wasm(candidate, tmp_path):
     path = candidate / release_package.INTEGRATION / "panel/app/_astro/reader.A1.wasm"
     path.write_bytes(b"not-a-wasm-module")
