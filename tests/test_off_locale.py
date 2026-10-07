@@ -104,7 +104,7 @@ def lookup(api, hass, locale=None, share=None):
     return asyncio.run(api.LookupView().get(request))
 
 
-@pytest.mark.parametrize("locale,name", [("en", "Milk"), ("us", "Milk"), ("es", "Leche"),
+@pytest.mark.parametrize("locale,name", [("en", "Milk"), ("us", "Milk"), ("au", "Milk"), ("es", "Leche"),
                                        ("fr", "Lait"), ("de", "Milch"), ("br", "Leite")])
 def test_locale_specific_name(api, locale, name):
     hass, _ = setup(api)
@@ -128,7 +128,7 @@ def test_fallback_name(api, product, name):
 def test_same_barcode_cache_is_localized_on_every_response(api):
     hass, store = setup(api)
     assert lookup(api, hass, "en")["name"] == "Milk"
-    for locale, name in [("es", "Leche"), ("fr", "Lait"), ("en", "Milk")]:
+    for locale, name in [("es", "Leche"), ("fr", "Lait"), ("en", "Milk"), ("au", "Milk")]:
         result = lookup(api, hass, locale)
         assert result["name"] == name
         assert result["cached"] is True

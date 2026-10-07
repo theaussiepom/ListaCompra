@@ -13,14 +13,14 @@ for (const fixture of cases) {
   });
 }
 
-test('all six resolver selections initialize empty state and remain pinned', () => {
-  for (const [language, country, expected] of [['es', 'ES', 'es'], ['en', 'GB', 'en'], ['en', 'US', 'us'], ['fr', 'FR', 'fr'], ['de', 'DE', 'de'], ['pt', 'BR', 'br']]) {
+test('all seven resolver selections initialize empty state and remain pinned', () => {
+  for (const [language, country, expected] of [['es', 'ES', 'es'], ['en', 'GB', 'en'], ['en', 'US', 'us'], ['fr', 'FR', 'fr'], ['de', 'DE', 'de'], ['pt', 'BR', 'br'], ['en', 'AU', 'au']]) {
     const state = refreshCatalog(createInitialState(), resolveLocale(language, country));
     assert.equal(state.catalogLocale, expected);
     assert.deepEqual(refreshCatalog(state, 'es'), state);
     assert.equal(state.products[0].id, LOCALIZED_PRODUCTS[expected][0].id);
   }
-  assert.deepEqual(LOCALES, ['es', 'en', 'us', 'fr', 'de', 'br']);
+  assert.deepEqual(LOCALES, ['es', 'en', 'us', 'fr', 'de', 'br', 'au']);
 });
 
 function populatedState() {

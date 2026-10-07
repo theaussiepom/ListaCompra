@@ -84,7 +84,7 @@ def make_hass(language="de", country="DE", snapshot=None):
 
 def test_empty_share_pins_server_resolver_and_survives_reload(store_type):
     async def run():
-        for lang, country, expected in [("es", "ES", "es"), ("en", "GB", "en"), ("en", "US", "us"), ("fr", "FR", "fr"), ("de", "DE", "de"), ("pt", "BR", "br")]:
+        for lang, country, expected in [("es", "ES", "es"), ("en", "GB", "en"), ("en", "US", "us"), ("fr", "FR", "fr"), ("de", "DE", "de"), ("pt", "BR", "br"), ("en", "AU", "au")]:
             hass = make_hass(lang, country)
             store = store_type(hass)
             await store.async_load()

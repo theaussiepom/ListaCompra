@@ -37,7 +37,7 @@ def test_edited_store_overrides_seed_destination():
     assert result["product"] == product
 
 
-@pytest.mark.parametrize("locale", ["es", "en", "us", "fr", "de", "br"])
+@pytest.mark.parametrize("locale", ["es", "en", "us", "fr", "de", "br", "au"])
 def test_existing_locale_routing(locale):
     catalog = json.loads((ROOT / "custom_components/tucompra/catalog.json").read_text())
     data = catalog["locales"][locale]

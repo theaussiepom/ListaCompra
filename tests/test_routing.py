@@ -261,13 +261,13 @@ def test_el_ejemplo_del_readme_existe_en_todos_los_idiomas():
             assert res["product"]["name"] == "Milk"
 
 
-def test_catalogo_exportado_tiene_los_seis_idiomas():
+def test_catalogo_exportado_tiene_los_siete_locales():
     path = ROOT / "custom_components" / "tucompra" / "catalog.json"
     if not path.exists():
         return  # no se ha corrido `npm run export:catalog`; en CI sí
     cat = json.loads(path.read_text(encoding="utf-8"))
     assert "locales" in cat, "catalog.json sigue en formato plano (solo español)"
-    for loc in ("es", "en", "us", "fr", "de", "br"):
+    for loc in ("es", "en", "us", "fr", "de", "br", "au"):
         assert loc in cat["locales"], f"falta el catálogo de {loc}"
         assert cat["locales"][loc]["products"], f"{loc} sin productos"
         assert cat["locales"][loc]["stores"], f"{loc} sin tiendas"

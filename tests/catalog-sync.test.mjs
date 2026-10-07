@@ -56,10 +56,11 @@ async function runtime(fakeTimers = false) {
 
 const snapshot = (catalogLocale='en', updatedAt=10) => ({catalogLocale,lists:{},customProducts:[],customStores:[],updatedAt});
 
-test('barcode lookup sends the pinned catalogue despite a different display language', async()=>{
+for (const catalogLocale of ['en', 'au']) {
+test(`barcode lookup sends pinned ${catalogLocale} catalogue despite a different display language`, async()=>{
   const run = await runtime();
   try {
-    run.app.state = refreshCatalog(createInitialState(), 'en');
+    run.app.state = refreshCatalog(createInitialState(), catalogLocale);
     run.app.setLocale('fr');
     let query;
     globalThis.fetch = async(url)=>{
@@ -67,10 +68,11 @@ test('barcode lookup sends the pinned catalogue despite a different display lang
       return run.respond({enabled:true,found:true,name:'Milk'});
     };
     assert.equal((await run.sync.lookupBarcode('3017620422003')).name, 'Milk');
-    assert.equal(query.get('locale'), 'en');
+    assert.equal(query.get('locale'), catalogLocale);
     assert.equal(query.get('share'), 'shared:old');
   } finally { await run.cleanup(); }
 });
+}
 
 test('actual AppStore hydration pins legacy data before differing display language is set', async()=>{
   const run = await runtime();
