@@ -1,12 +1,12 @@
 {
   "domain": "tucompra",
   "name": "Tu Compra",
-  "codeowners": ["@maestrea76"],
+  "codeowners": ["@theaussiepom"],
   "config_flow": false,
   "dependencies": ["http", "frontend", "person"],
-  "documentation": "https://github.com/maestrea76/ListaCompra",
+  "documentation": "https://github.com/theaussiepom/ListaCompra/blob/release/fork-hacs-prep/docs/fork-installation.md",
   "integration_type": "service",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/maestrea76/ListaCompra/issues",
+  "issue_tracker": "https://github.com/theaussiepom/ListaCompra/issues",
   "version": "0.3.0"
 }

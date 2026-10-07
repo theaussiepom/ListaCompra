@@ -1,5 +1,19 @@
 # 🛒 Tu Compra — Supermarket & Grocery Shopping Lists for Home Assistant
 
+This is the **independently maintained Australian fork** of
+[Tu Compra by maestrea76](https://github.com/maestrea76/ListaCompra), maintained
+at [theaussiepom/ListaCompra](https://github.com/theaussiepom/ListaCompra).
+It retains the original MIT licence and attribution. Fork support belongs in
+[our issue tracker](https://github.com/theaussiepom/ListaCompra/issues); independent
+fork maintenance does not imply endorsement or support from the original author.
+
+**Publication status:** release preparation is in progress. No fork release is
+available yet, and publication requires a separate approval. Future fork
+releases will include the Australian catalogue. Fork `main` intentionally
+tracks upstream and does **not** contain our Australian extension: install a
+published fork release when one is available. See the
+[fork installation and rollback guide](https://github.com/theaussiepom/ListaCompra/blob/release/fork-hacs-prep/docs/fork-installation.md).
+
 **Tu Compra** ("My Shopping") is a **multi-store supermarket / grocery shopping
 list** that runs **100% locally inside Home Assistant**. No cloud, no accounts,
 no subscriptions: your lists live in your own HA instance, and your identity is
@@ -9,7 +23,9 @@ It adds a **Tu Compra** panel to your Home Assistant sidebar, with a visual,
 mobile-first interface designed for actually using it while walking around a
 supermarket.
 
-🔗 Live demo (browser only, no HA): https://maestrea76.github.io/ListaCompra/
+🔗 [Original project's live demo](https://maestrea76.github.io/ListaCompra/)
+(browser only, no HA). The demo and screenshots below illustrate the original
+project and do not necessarily show this fork's Australian features.
 
 ---
 
@@ -113,9 +129,19 @@ across several shops. Tu Compra is built around the way people really shop:
 
 ## Installation (HACS)
 
+These steps apply **after a fork release is published**. Until then, do not
+select `main` or an inherited upstream tag as an Australian release. If Tu
+Compra is already installed, follow the
+[backup and source-switch guidance](https://github.com/theaussiepom/ListaCompra/blob/release/fork-hacs-prep/docs/fork-installation.md#replacing-an-existing-tu-compra-installation)
+first. Both projects use the same `tucompra` domain; this fork replaces that
+installation.
+
 1. In **HACS** → ⋮ menu → **Custom repositories**, add
-   `https://github.com/maestrea76/ListaCompra` with category **Integration**.
-2. Install **Tu Compra** and **restart** Home Assistant.
+   `https://github.com/theaussiepom/ListaCompra` with category **Integration**.
+2. Choose an actual version listed on the
+   [fork's Releases page](https://github.com/theaussiepom/ListaCompra/releases)
+   with its `tucompra.zip` asset. Avoid `main`, even if HACS offers it. Install
+   **Tu Compra** and **restart** Home Assistant.
 3. Add this line to your `configuration.yaml`:
 
    ```yaml
@@ -123,7 +149,9 @@ across several shops. Tu Compra is built around the way people really shop:
    ```
 
 4. Restart Home Assistant again.
-5. **Tu Compra** now appears in your sidebar.
+5. **Tu Compra** now appears in your sidebar. Confirm the installed version and
+   catalogue using the
+   [acceptance checks](https://github.com/theaussiepom/ListaCompra/blob/release/fork-hacs-prep/docs/fork-installation.md#verify-the-installation).
 
 That's the whole setup — there is nothing else to configure. No account, no API
 key, no passphrase.
@@ -354,6 +382,18 @@ create" means nothing is ever blocked by a missing product.
 
 # 🇪🇸 Español
 
+Este repositorio es un **fork australiano mantenido de forma independiente** de
+[Tu Compra, de maestrea76](https://github.com/maestrea76/ListaCompra). Conserva
+la licencia MIT y la atribución original. El soporte de este fork corresponde a
+[nuestro repositorio](https://github.com/theaussiepom/ListaCompra/issues), sin
+implicar soporte ni respaldo del autor original.
+
+**Estado de publicación:** todavía no hay una versión publicada de este fork;
+publicarla requiere una autorización aparte. Nuestras futuras versiones
+incluirán el catálogo australiano. La rama `main` sigue el proyecto original y
+no contiene nuestra extensión australiana. La demo y las capturas del proyecto
+original no representan necesariamente las funciones de este fork.
+
 **Tu Compra** es una aplicación de **listas de la compra multi-tienda** que
 funciona **100% en local dentro de Home Assistant**. Sin nube, sin cuentas y sin
 suscripciones: los datos viven en tu propio HA y tu identidad es simplemente el
@@ -418,16 +458,27 @@ del resto de España (jamón ibérico, fabes, turrón de Jijona…).
 
 ## Instalación (HACS)
 
+Estos pasos se aplican **cuando se publique una versión del fork**. No elijas
+`main` ni una etiqueta heredada del proyecto original como versión australiana.
+Si ya tienes Tu Compra, consulta primero la
+[guía de copia de seguridad, sustitución y restauración](https://github.com/theaussiepom/ListaCompra/blob/release/fork-hacs-prep/docs/fork-installation.md).
+El dominio sigue siendo `tucompra`: este fork sustituye la instalación existente,
+no se instala como una segunda integración.
+
 1. HACS → ⋮ → **Repositorios personalizados**: añade
-   `https://github.com/maestrea76/ListaCompra` como **Integración**.
-2. Instala **Tu Compra** y **reinicia** Home Assistant.
+   `https://github.com/theaussiepom/ListaCompra` como **Integración**.
+2. Elige una versión de la
+   [página de publicaciones del fork](https://github.com/theaussiepom/ListaCompra/releases)
+   que incluya `tucompra.zip`. Evita `main`, aunque HACS la ofrezca. Instala
+   **Tu Compra** y **reinicia** Home Assistant.
 3. Añade a `configuration.yaml`:
 
    ```yaml
    tucompra:
    ```
 
-4. Reinicia otra vez. Aparecerá **Tu Compra** en la barra lateral.
+4. Reinicia otra vez. Aparecerá **Tu Compra** en la barra lateral. Comprueba la
+   versión instalada y el catálogo siguiendo la guía anterior.
 
 No hay nada más que configurar: ni cuenta, ni API key, ni passphrase.
 
@@ -535,4 +586,8 @@ Reinicia HA y di: *"añade papel higiénico a la compra"*.
 
 ## License
 
-MIT
+[MIT](https://github.com/theaussiepom/ListaCompra/blob/release/fork-hacs-prep/LICENSE).
+Original copyright: **Copyright (c) 2026 maestrea76**. The original notice and
+permission text are preserved in the repository and included in the fork's
+release ZIP. Independent fork maintenance and Australian extensions do not
+change that attribution.
