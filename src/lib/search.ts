@@ -1,16 +1,13 @@
 // Búsqueda difusa del catálogo, compartida por toda la app.
 //
-// IMPORTANTE: `scoreMatch` es un calco de _score() en
-// custom_components/tucompra/routing.py y tiene que seguir siéndolo. Si divergen,
-// buscar "pan" en la app y pedir "pan" por voz dan productos distintos, que es
-// justo lo que confunde al usuario. Las pruebas de tests/test_routing.py fijan
-// los tramos del lado Python.
+// scoreMatch y selectAutomaticMatch mantienen paridad con routing.py.
+// Las sugerencias son tolerantes; las acciones automáticas exigen confianza.
 
 import type { Product } from './types';
 
 /** minúsculas + sin acentos/diacríticos. */
 export const norm = (s: string): string =>
-  (s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  (s ?? '').toLowerCase().normalize('NFD').replace(/\p{Mn}/gu, '');
 
 /** ¿Aparecen los caracteres de `needle` en orden dentro de `hay`? */
 const isSubsequence = (needle: string, hay: string): boolean => {
@@ -39,14 +36,35 @@ export const scoreMatch = (name: string, q: string): number => {
 
 /** Ordena los que casan, del mejor al peor. A igual puntuación gana el nombre
  *  MÁS CORTO: es el más parecido a lo pedido. */
-export function rankMatches<T extends { name: string }>(items: T[], query: string): T[] {
+export function rankScoredMatches<T extends { name: string; id?: string }>(items: T[], query: string) {
   const q = norm(query.trim());
   if (!q) return [];
   return items
     .map((it) => ({ it, score: scoreMatch(norm(it.name), q) }))
     .filter((x) => x.score >= 0)
-    .sort((a, b) => b.score - a.score || norm(a.it.name).length - norm(b.it.name).length)
-    .map((x) => x.it);
+    .sort((a, b) => {
+      const order = b.score - a.score || norm(a.it.name).length - norm(b.it.name).length;
+      if (order) return order;
+      const left = `${norm(a.it.name)}\0${a.it.id ?? ''}`;
+      const right = `${norm(b.it.name)}\0${b.it.id ?? ''}`;
+      return left < right ? -1 : left > right ? 1 : 0;
+    });
+}
+
+export function rankMatches<T extends { name: string; id?: string }>(items: T[], query: string): T[] {
+  return rankScoredMatches(items, query).map((x) => x.it);
+}
+
+/** Solo exactos únicos o prefijos de palabra completa sin competidores léxicos. */
+export function selectAutomaticMatch<T extends { name: string; id?: string }>(items: T[], query: string): T | null {
+  const ranked = rankScoredMatches(items, query);
+  const best = ranked[0];
+  if (!best || ranked[1]?.score === best.score) return null;
+  if (best.score === 5) return best.it;
+  const q = norm(query.trim());
+  if (best.score === 4 && q.length >= 3 && /\s/.test(norm(best.it.name).charAt(q.length))
+    && !ranked.slice(1).some((candidate) => candidate.score >= 3)) return best.it;
+  return null;
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

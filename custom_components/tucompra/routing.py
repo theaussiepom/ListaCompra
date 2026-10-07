@@ -8,6 +8,7 @@ producto dictado por voz. Si no se puede clasificar, va a la bandeja "inbox".
 from __future__ import annotations
 
 import json
+import re
 import unicodedata
 from pathlib import Path
 from typing import Any
@@ -103,7 +104,7 @@ def _score(name_n: str, q: str) -> int:
     words = [w for w in q.split() if w]
     if len(words) > 1 and all(w in name_n for w in words):
         return 2
-    if _is_subsequence(q.replace(" ", ""), name_n):
+    if _is_subsequence(re.sub(r"\s+", "", q), name_n):
         return 1
     return -1
 
@@ -127,7 +128,8 @@ def match_scored(name: str, products: list[dict]) -> list[tuple[int, dict]]:
         for p in products
         if (sc := _score(_norm(p.get("name", "")), q)) > 0
     ]
-    puntuados.sort(key=lambda x: (-x[0], len(_norm(x[1].get("name", "")))))
+    puntuados.sort(key=lambda x: (-x[0], len(_norm(x[1].get("name", ""))),
+                                 _norm(x[1].get("name", "")), x[1].get("id", "")))
     return puntuados
 
 
@@ -135,19 +137,29 @@ def match_candidates(name: str, products: list[dict], limit: int = 5) -> list[di
     return [p for _, p in match_scored(name, products)[:limit]]
 
 
-def tied_alternatives(scored: list[tuple[int, dict]], limit: int = 3) -> list[str]:
-    """Nombres que EMPATAN con el ganador, sin él y sin repetidos.
+def select_automatic_match(name: str, scored: list[tuple[int, dict]]) -> dict | None:
+    """Solo exactos únicos o prefijos de palabra completa sin competidores léxicos."""
+    if not scored or (len(scored) > 1 and scored[1][0] == scored[0][0]):
+        return None
+    score, product = scored[0]
+    if score == 5:
+        return product
+    q = _norm(name).strip()
+    text = _norm(product.get("name", ""))
+    if (score == 4 and len(q) >= 3 and text[len(q):len(q) + 1].isspace()
+            and not any(candidate_score >= 3 for candidate_score, _ in scored[1:])):
+        return product
+    return None
 
-    Solo el empate es ambigüedad de verdad. Si se devolviera cualquier otra
-    coincidencia, "leche" (exacta, 5) saldría como ambigua por "Chocolate con
-    leche" (3), y Assist recitaría alternativas en cada frase.
-    """
-    if not scored:
+
+def tied_alternatives(scored: list[tuple[int, dict]], limit: int = 3) -> list[str]:
+    """Candidatos fuertes empatados, sin decidir por orden ni repetir nombres."""
+    if len(scored) < 2 or scored[0][0] < 4 or scored[0][0] != scored[1][0]:
         return []
     mejor = scored[0][0]
-    fuera = {_norm(scored[0][1].get("name", ""))}
+    fuera: set[str] = set()
     out: list[str] = []
-    for sc, p in scored[1:]:
+    for sc, p in scored:
         if sc != mejor:
             break                       # ya vienen ordenados: el resto puntúa menos
         n = p.get("name", "")
@@ -165,9 +177,7 @@ def resolve(name: str, snapshot: dict | None, catalog: dict) -> dict[str, Any]:
     snapshot = snapshot or {}
     products = list(catalog.get("products", [])) + list(snapshot.get("customProducts", []))
     puntuados = match_scored(name, products)
-    product = puntuados[0][1] if puntuados else None
-    # Solo los que EMPATAN con el ganador: esos sí son duda real. El servicio los
-    # devuelve para que Assist los diga y el usuario elija sin ir a la app.
+    product = select_automatic_match(name, puntuados)
     alternativas = tied_alternatives(puntuados)
 
     cat_type = {c["id"]: c["typeId"] for c in catalog.get("categories", [])}
