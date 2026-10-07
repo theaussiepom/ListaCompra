@@ -1,53 +1,27 @@
-name: Release HACS
+name: Retired upstream release workflow
 
-# Al empujar un tag vX.Y.Z:
-#   1. compila el panel (npm run build:ha),
-#   2. empaqueta la integración (con el panel ya construido) en tucompra.zip,
-#   3. publica un GitHub Release con ese zip como asset.
-# HACS (zip_release en hacs.json) descarga ese asset → los usuarios instalan
-# la versión ya compilada. Nadie tiene que construir nada a mano.
-
-on:
+# Las revisiones antiguas aún publican: desactivar este workflow en el repositorio antes de crear tags.
+'on':
   push:
+    branches:
+      - release/fork-hacs-prep
     tags:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  retired:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Sincronizar versión con el tag (manifest + package.json)
+      - name: Explain the retired release path
+        env:
+          EVENT_REF: ${{ github.ref }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          echo "Publicando versión $VERSION"
-          # manifest.version → la usa HACS; package.json.version → footer del panel.
-          # Debe ir ANTES del build para que el footer tome la versión del tag.
-          python -c "import json; p='custom_components/tucompra/manifest.json'; d=json.load(open(p)); d['version']='$VERSION'; json.dump(d, open(p,'w'), indent=2, ensure_ascii=False)"
-          python -c "import json; p='package.json'; d=json.load(open(p)); d['version']='$VERSION'; json.dump(d, open(p,'w'), indent=2, ensure_ascii=False)"
-
-      - name: Build panel (SPA → custom_components/tucompra/panel/app)
-        run: npm run build:ha
-
-      - name: Empaquetar integración
-        run: |
-          cd custom_components/tucompra
-          zip -r "$GITHUB_WORKSPACE/tucompra.zip" . -x '*.pyc' -x '*/__pycache__/*'
-
-      - name: Publicar Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: tucompra.zip
-          generate_release_notes: true
-          fail_on_unmatched_files: true
+          echo 'This workflow no longer builds or publishes fork releases.'
+          echo 'Use fork-release.yml after separately approving the candidate and repository safeguards.'
+          echo 'Older revisions retain the original publisher; disable this workflow repository-wide before any v* tag.'
+          if [[ "$EVENT_REF" == refs/tags/* ]]; then
+            exit 1
+          fi

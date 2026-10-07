@@ -41,7 +41,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: npm install
+      - run: npm ci
       - run: npm run check
       # Genera catalog.json para que la prueba pueda comprobar que lleva los
       # todos los locales y no solo el español.
@@ -51,6 +51,6 @@ jobs:
           if compgen -G 'tests/*.test.mjs' > /dev/null; then
             node --import tsx --test tests/*.test.mjs
           fi
-      - run: pip install pytest
+      - run: pip install -r requirements-release.txt
       - run: pytest tests/ -q
       - run: npm run build:ha

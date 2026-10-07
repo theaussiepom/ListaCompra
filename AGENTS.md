@@ -28,7 +28,8 @@ Navegación por **hash** (`#/lista/<id>`): aiohttp en HA da 403 en subdirectorio
 - Dev: `npm run dev`
 - Panel HA: `npm run build:ha` (exporta catálogo + build a `custom_components/tucompra/panel/app/`)
 - Tests: `pytest tests/` (tras `npm run export:catalog`)
-- Release HACS: `git tag vX.Y.Z && git push origin vX.Y.Z` → `release.yml` publica `tucompra.zip`
+- Release del fork: seguir `docs/fork-release.md`; ejecutar primero `scripts/release_preflight.py` sobre el SHA exacto.
+- Publicar exige autorización separada, desactivar el workflow histórico `release.yml` en GitHub y aprobar SHA/versión. Solo `fork-release.yml` puede publicar el artefacto validado. No crear tags durante la preparación.
 - El build del panel y `catalog.json` están en `.gitignore`; viajan en el zip del release.
 
 No commitear `node_modules/`, `.claude/`, `custom_components/tucompra/panel/app/`, `catalog.json`.
