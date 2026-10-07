@@ -63,6 +63,8 @@ export interface Product {
   categoryId: Category['id'];
   /** Nombres alternativos para buscar el mismo producto, sin duplicar su ID. */
   aliases?: string[];
+  /** Otra ubicación del mismo concepto; apunta directamente al producto canónico. */
+  mirrorOf?: Product['id'];
   icon: IconRef;
   defaultUnit: Unit;
   /** Imagen personalizada subida por el usuario (dataURL) */

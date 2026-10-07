@@ -19,7 +19,7 @@ const bindHandlers = new Function('context', `
   return { keydown: handleQueryKeydown, clickSuggestion: addProduct, query: () => query };
 `);
 
-function listInput(products, query) {
+function listInput(products, query, store = { id: 'market', typeId: 'supermercado' }) {
   const items = [];
   const created = [];
   const app = {
@@ -33,7 +33,7 @@ function listInput(products, query) {
     },
   };
   const suggestions = search.rankMatches(products, query);
-  const handlers = bindHandlers({ app, store: { id: 'market', typeId: 'supermercado' },
+  const handlers = bindHandlers({ app, store,
     productsForType: products, filtered: suggestions, query, ...search });
   return {
     ...handlers, items, created, suggestions,
@@ -123,5 +123,24 @@ test('explicitly clicking a partial alias suggestion still chooses its product',
   assert.equal(ui.suggestions[0].id, 'chickpea');
   ui.clickSuggestion(ui.suggestions[0].id);
   assert.equal(ui.items[0].productId, 'chickpea');
+  assert.deepEqual(ui.created, []);
+});
+
+test('global Enter resolves exact mirror rows to their canonical identity', () => {
+  const canonical = { id: 'canonical', name: 'Beef mince', defaultUnit: 'kg' };
+  const mirror = { id: 'mirror', name: 'Beef mince', mirrorOf: canonical.id, defaultUnit: 'g' };
+  const ui = listInput([mirror, canonical], 'Beef mince');
+  ui.enter();
+  assert.deepEqual(ui.items, [{ storeId: 'market', productId: canonical.id, qty: 1, unit: 'kg' }]);
+  assert.deepEqual(ui.created, []);
+});
+
+test('specialist suggestion click preserves the visible mirror row and its unit', () => {
+  const mirror = { id: 'mirror', name: 'Beef mince', categoryId: 'butcher-beef', mirrorOf: 'canonical', defaultUnit: 'g' };
+  const ui = listInput([mirror], 'Beef mince', { id: 'butcher', typeId: 'carniceria' });
+  assert.deepEqual(ui.suggestions, [mirror]);
+  assert.equal(search.selectAutomaticMatch([mirror], 'Beef mince'), null);
+  ui.clickSuggestion(ui.suggestions[0].id);
+  assert.deepEqual(ui.items, [{ storeId: 'butcher', productId: mirror.id, qty: 1, unit: 'g' }]);
   assert.deepEqual(ui.created, []);
 });

@@ -4,8 +4,9 @@
 // Las sugerencias son tolerantes; las acciones automáticas exigen confianza.
 
 import type { Product } from './types';
+import { getProductConceptResolver, type ProductIdentity } from './productConcept';
 
-type Searchable = { name: string; id?: string; aliases?: string[] };
+type Searchable = ProductIdentity & { name: string; aliases?: string[] };
 type ScoredMatch<T> = { it: T; score: number; source: 'canonical' | 'alias'; text: string };
 
 /** minúsculas + sin acentos/diacríticos. */
@@ -90,11 +91,13 @@ export function selectAutomaticMatch<T extends Searchable>(items: T[], query: st
   const best = ranked[0];
   if (!best) return null;
   const peers = ranked.filter((m) => m.score === best.score && (best.score !== 5 || m.source === best.source));
-  if (peers.length !== 1) return null;
-  if (best.score === 5) return best.it;
+  const concept = getProductConceptResolver(items);
+  const canonical = concept(best.it);
+  if (!canonical || peers.some((candidate) => concept(candidate.it) !== canonical)) return null;
+  if (best.score === 5) return canonical;
   const q = norm(query.trim());
   if (best.source === 'canonical' && best.score === 4 && [...q].length >= 3 && /\s/.test(best.text.charAt(q.length))
-    && !ranked.slice(1).some((candidate) => candidate.score >= 3)) return best.it;
+    && !ranked.some((candidate) => candidate.score >= 3 && concept(candidate.it) !== canonical)) return canonical;
   return null;
 }
 
