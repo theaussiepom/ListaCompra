@@ -137,7 +137,7 @@ class LookupView(HomeAssistantView):
         if share_id:
             if not store.is_member(share_id, request["hass_user"].id):
                 return self.json_message("No eres miembro de este share.", status_code=403)
-            snapshot = store.get_snapshot(share_id)
+            snapshot = await store.async_get_snapshot(share_id)
             if isinstance(snapshot, dict) and snapshot.get("catalogLocale") in OFF_LANGUAGES:
                 locale = snapshot["catalogLocale"]
         if locale not in OFF_LANGUAGES:

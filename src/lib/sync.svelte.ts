@@ -416,7 +416,7 @@ export interface LookupResult {
 export async function lookupBarcode(barcode: string): Promise<LookupResult> {
   if (!syncStatus.inHA) return { enabled: false };
   try {
-    const query = new URLSearchParams({ barcode, locale: app.state.locale ?? DEFAULT_LOCALE });
+    const query = new URLSearchParams({ barcode, locale: app.state.catalogLocale ?? app.state.locale ?? DEFAULT_LOCALE });
     if (syncStatus.activeShareId) query.set('share', syncStatus.activeShareId);
     return await api<LookupResult>(`/api/tucompra/lookup?${query}`);
   } catch (e) {
