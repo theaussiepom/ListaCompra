@@ -5,6 +5,7 @@ import type { AppState, IconRef, ListItem, Product, ShoppingList, Store, UserPro
 import { createInitialState, loadState, saveState } from '../storage';
 import { getLocalizedSeed, LOCALIZED_STORES } from '../data/locales';
 import { DEFAULT_LOCALE, LOCALES, type Locale } from '../i18n/locale';
+import { getDefaultStore, suggestStoreFor } from '../storeRouting';
 
 // IDs de tienda de TODOS los locales: sirve para distinguir "tienda de seed
 // (de cualquier idioma)" de "tienda custom del usuario".
@@ -156,12 +157,7 @@ class AppStore {
   /** Devuelve la tienda por defecto de un tipo. Si no hay una fijada y solo
    *  existe una tienda de ese tipo, devuelve esa (default implícito). */
   getDefaultStore(typeId: string): string | undefined {
-    const explicit = this.state.defaultStores?.[typeId];
-    if (explicit && this.state.stores.some((s) => s.id === explicit)) return explicit;
-    const ofType = this.state.stores.filter(
-      (s) => s.typeId === typeId && s.enabled !== false,
-    );
-    return ofType.length === 1 ? ofType[0].id : undefined;
+    return getDefaultStore(typeId, this.state.stores, this.state.defaultStores);
   }
 
   // -------- Catálogo de productos --------
@@ -324,14 +320,11 @@ class AppStore {
     this.persist();
   }
 
-  /** Sugiere la tienda destino de un producto: su categoría → tipo → tienda
-   *  por defecto de ese tipo. undefined si no se puede deducir. */
+  /** Respeta la tienda exclusiva o deduce una por tipo. undefined → bandeja. */
   suggestStoreFor(productId: string): string | undefined {
     const p = this.state.products.find((x) => x.id === productId);
     if (!p) return undefined;
-    const cat = this.state.categories.find((c) => c.id === p.categoryId);
-    if (!cat) return undefined;
-    return this.getDefaultStore(cat.typeId);
+    return suggestStoreFor(p, this.state.categories, this.state.stores, this.state.defaultStores);
   }
 
   /** Ajusta la cantidad. Si delta hace que baje a <=0, no hace nada (usa

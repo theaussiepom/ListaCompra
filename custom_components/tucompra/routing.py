@@ -180,23 +180,25 @@ def resolve(name: str, snapshot: dict | None, catalog: dict) -> dict[str, Any]:
 
     store_id: str | None = None
 
-    # Producto exclusivo de una tienda (marca propia): manda sobre el tipo.
+    # Una tienda exclusiva no disponible no permite sustituir el destino.
     exclusive = product.get("storeId") if product else None
-    if exclusive and exclusive in stores and stores[exclusive].get("enabled", True) is not False:
-        return {"product": product, "type_id": type_id, "store_id": exclusive,
+    if exclusive:
+        target = stores.get(exclusive)
+        if type_id and target and target.get("typeId") == type_id and target.get("enabled", True) is not False:
+            store_id = exclusive
+        return {"product": product, "type_id": type_id, "store_id": store_id,
                 "alternatives": alternativas}
 
     if type_id:
+        of_type = [
+            s for s in stores.values()
+            if s.get("typeId") == type_id and s.get("enabled", True) is not False
+        ]
         explicit = default_stores.get(type_id)
-        if explicit and explicit in stores and stores[explicit].get("enabled", True) is not False:
+        if explicit and any(s["id"] == explicit for s in of_type):
             store_id = explicit
-        else:
-            of_type = [
-                s for s in stores.values()
-                if s.get("typeId") == type_id and s.get("enabled", True) is not False
-            ]
-            if len(of_type) == 1:
-                store_id = of_type[0]["id"]
+        elif len(of_type) == 1:
+            store_id = of_type[0]["id"]
 
     return {"product": product, "type_id": type_id, "store_id": store_id,
             "alternatives": alternativas}
