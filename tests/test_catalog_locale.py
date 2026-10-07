@@ -13,7 +13,10 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "custom_components" / "tucompra"
-spec = importlib.util.spec_from_file_location("catalog_locale", COMPONENT / "catalog_locale.py")
+package = ModuleType("catalog_locale_tests")
+package.__path__ = [str(COMPONENT)]
+sys.modules[package.__name__] = package
+spec = importlib.util.spec_from_file_location(f"{package.__name__}.catalog_locale", COMPONENT / "catalog_locale.py")
 migration = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(migration)
 CATALOG = json.loads((COMPONENT / "catalog.json").read_text())

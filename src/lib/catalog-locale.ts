@@ -1,6 +1,7 @@
 import type { AppState, Category, PendingField, Product, ShoppingList, Store } from './types';
 import { getLocalizedSeed, LOCALIZED_PRODUCTS, LOCALIZED_STORES } from './data/locales';
 import { DEFAULT_LOCALE, LOCALES, type Locale } from './i18n/locale';
+import { getProductConceptResolver } from './productConcept';
 
 export interface SyncSnapshot {
   catalogLocale?: Locale;
@@ -38,7 +39,17 @@ export function catalogReferences(data: Evidence): { products: Set<string>; stor
   for (const s of [...(data.stores ?? []), ...(data.customStores ?? [])]) {
     if (s.edited || s.loyalty || s.enabled === false || (s.order !== undefined && s.order !== allStores.get(s.id)?.order) || !allStores.has(s.id)) stores.add(s.id);
   }
-  for (const p of [...(data.products ?? []), ...(data.customProducts ?? []), ...(data.retainedProducts ?? [])]) {
+  const localProducts = [...(data.products ?? []), ...(data.customProducts ?? []), ...(data.retainedProducts ?? [])];
+  const concept = getProductConceptResolver([...allProducts.values(), ...localProducts.filter((p) => !allProducts.has(p.id))]);
+  // Una referencia al mirror conserva su destino directo, aunque sea de otro seed.
+  for (const p of [...localProducts.filter((p) => !allProducts.has(p.id)), ...(data.retainedProducts ?? []), ...[...products].flatMap((id) => {
+    const product = allProducts.get(id) ?? localProducts.find((p) => p.id === id);
+    return product ? [product] : [];
+  })]) {
+    const target = concept(p);
+    if (p.mirrorOf !== undefined && target && target.id !== p.id) products.add(target.id);
+  }
+  for (const p of localProducts) {
     if (!allProducts.has(p.id) || products.has(p.id)) {
       if (p.storeId) stores.add(p.storeId);
     }
@@ -159,11 +170,18 @@ export function applySnapshot(state: AppState, incoming: SyncSnapshot, preserveL
   }
   const protectedRefs = catalogReferences(protectedData);
   for (const p of protectedData.customProducts ?? []) protectedRefs.products.add(p.id);
+  const localIds = new Set(state.products.map((p) => p.id));
+  const protectedConcept = getProductConceptResolver([
+    ...state.products.map((p) => products.get(p.id) ?? p),
+    ...[...products.values()].filter((p) => !localIds.has(p.id)),
+  ]);
   // Conserva dependencias de cambios pendientes sin resucitar objetos borrados localmente.
   for (const id of protectedRefs.products) {
     const product = products.get(id) ?? state.products.find((p) => p.id === id);
     if (!product) continue;
     products.set(id, product);
+    const target = protectedConcept(product);
+    if (product.mirrorOf !== undefined && target && target.id !== id) protectedRefs.products.add(target.id);
     const category = state.categories.find((c) => c.id === product.categoryId);
     if (category) preservedCategories.set(category.id, category);
     if (product.storeId) protectedRefs.stores.add(product.storeId);

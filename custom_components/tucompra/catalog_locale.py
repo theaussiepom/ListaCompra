@@ -4,6 +4,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from .routing import get_product_concept_resolver
+
 LOCALES = ("es", "en", "us", "fr", "de", "br")
 
 
@@ -22,7 +24,18 @@ def catalog_references(snapshot: dict, catalog: dict) -> tuple[set[str], set[str
     for s in [*snapshot.get("stores", []), *snapshot.get("customStores", [])]:
         if s.get("edited") or s.get("loyalty") or s.get("enabled") is False or (s.get("order") is not None and s.get("order") != all_stores.get(s["id"], {}).get("order")) or s["id"] not in all_stores:
             stores.add(s["id"])
-    for p in [*snapshot.get("products", []), *snapshot.get("customProducts", []), *snapshot.get("retainedProducts", [])]:
+    local_products = [*snapshot.get("products", []), *snapshot.get("customProducts", []), *snapshot.get("retainedProducts", [])]
+    concept = get_product_concept_resolver([*all_products.values(), *[p for p in local_products if p["id"] not in all_products]])
+    roots = [p for p in local_products if p["id"] not in all_products] + snapshot.get("retainedProducts", [])
+    roots.extend(all_products.get(product_id) or next((p for p in local_products if p["id"] == product_id), None) for product_id in products)
+    # Una referencia al mirror conserva su destino directo, aunque sea de otro seed.
+    for product in roots:
+        if product is None:
+            continue
+        target = concept(product)
+        if "mirrorOf" in product and target is not None and target["id"] != product["id"]:
+            products.add(target["id"])
+    for p in local_products:
         if (p["id"] not in all_products or p["id"] in products) and p.get("storeId"):
             stores.add(p["storeId"])
     for product_id in products:
