@@ -132,7 +132,7 @@
 
     <div class="relative mx-auto select-none" style="touch-action: none; width: fit-content;">
       <img bind:this={imgEl} {src} alt="" draggable="false"
-        onload={(e) => { const i = e.currentTarget; natural = { w: i.naturalWidth, h: i.naturalHeight }; }}
+        onload={(e) => { const i = e.currentTarget as HTMLImageElement; natural = { w: i.naturalWidth, h: i.naturalHeight }; }}
         class="block max-w-full rounded-lg" style="max-height: 60vh;" />
 
       <!-- Capa que recibe los gestos, exactamente sobre la imagen. -->

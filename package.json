@@ -11,7 +11,7 @@
     "export:catalog": "tsx scripts/export-catalog.ts",
     "build:ha": "npm run export:catalog && cross-env HA_PANEL=true astro build --outDir custom_components/tucompra/panel/app",
     "astro": "astro",
-    "check": "astro check"
+    "check": "astro check && svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
     "@astrojs/svelte": "^7.0.10",
@@ -25,7 +25,9 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
     "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^20.19.43",
     "cross-env": "^7.0.3",
+    "svelte-check": "^4.7.6",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
