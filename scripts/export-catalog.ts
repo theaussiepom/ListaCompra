@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { CATEGORIES_SEED } from '../src/lib/data/categories.ts';
 import { LOCALIZED_PRODUCTS, LOCALIZED_STORES } from '../src/lib/data/locales/index.ts';
 import { LOCALES } from '../src/lib/i18n/locale.ts';
+import { exportProduct } from './catalog-product.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(__dirname, '../custom_components/tucompra/catalog.json');
@@ -35,14 +36,7 @@ const catalog = {
     LOCALES.map((loc) => [
       loc,
       {
-        products: LOCALIZED_PRODUCTS[loc].map((p) => ({
-          id: p.id,
-          name: p.name,
-          categoryId: p.categoryId,
-          defaultUnit: p.defaultUnit,
-          // Exclusivo de una tienda (marca propia): el enrutado lo respeta.
-          ...(p.storeId ? { storeId: p.storeId } : {}),
-        })),
+        products: LOCALIZED_PRODUCTS[loc].map(exportProduct),
         stores: LOCALIZED_STORES[loc].map((s) => ({
           id: s.id,
           name: s.name,

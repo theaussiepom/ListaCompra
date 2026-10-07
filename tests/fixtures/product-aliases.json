@@ -1,0 +1,17 @@
+[
+  {"name":"legacy product","query":"milk","products":[{"id":"milk","name":"Milk"}],"matches":[[5,"canonical","milk"]],"automatic":"milk"},
+  {"name":"exact alias","query":"garbanzo","products":[{"id":"chickpea","name":"Chickpea","aliases":["Garbanzo"]}],"matches":[[5,"alias","chickpea"]],"automatic":"chickpea"},
+  {"name":"canonical exact beats alias exact","query":"bread","products":[{"id":"roll","name":"Roll","aliases":["Bread"]},{"id":"bread","name":"Bread"}],"matches":[[5,"canonical","bread"],[5,"alias","roll"]],"automatic":"bread"},
+  {"name":"alias collision","query":"beans","products":[{"id":"kidney","name":"Kidney beans","aliases":["Beans"]},{"id":"baked","name":"Baked beans","aliases":["Beans"]}],"matches":[[5,"alias","baked"],[5,"alias","kidney"]],"automatic":null},
+  {"name":"alias case and diacritics","query":"CAFE","products":[{"id":"coffee","name":"Coffee","aliases":["  Café  "]}],"matches":[[5,"alias","coffee"]],"automatic":"coffee"},
+  {"name":"alias prefix suggestion only","query":"garban","products":[{"id":"chickpea","name":"Chickpea","aliases":["Garbanzo beans"]}],"matches":[[4,"alias","chickpea"]],"automatic":null},
+  {"name":"whole word alias prefix suggestion only","query":"garbanzo","products":[{"id":"chickpea","name":"Chickpea","aliases":["Garbanzo beans"]}],"matches":[[4,"alias","chickpea"]],"automatic":null},
+  {"name":"specific branded request preserved","query":"Panadol Night","products":[{"id":"medicine","name":"Paracetamol","aliases":["Panadol"]}],"matches":[],"automatic":null},
+  {"name":"alias substring suggestion only","query":"washing","products":[{"id":"detergent","name":"Detergent","aliases":["Dishwashing liquid"]}],"matches":[[3,"alias","detergent"]],"automatic":null},
+  {"name":"duplicate aliases yield one product","query":"cafe","products":[{"id":"coffee","name":"Coffee","aliases":["Café","Cafe","CAFE"]}],"matches":[[5,"alias","coffee"]],"automatic":"coffee"},
+  {"name":"canonical match source stays primary","query":"milk","products":[{"id":"milk","name":"Milk","aliases":["MILK"]}],"matches":[[5,"canonical","milk"]],"automatic":"milk"},
+  {"name":"empty aliases ignored","query":"unknown","products":[{"id":"milk","name":"Milk","aliases":["","  "]}],"matches":[],"automatic":null},
+  {"name":"canonical prefix conflicts with alias prefix","query":"milk","products":[{"id":"whole","name":"Milk whole"},{"id":"oat","name":"Oat drink","aliases":["Milk alternative"]}],"matches":[[4,"canonical","whole"],[4,"alias","oat"]],"automatic":null},
+  {"name":"Unicode prefix length parity","query":"💊a","products":[{"id":"medicine","name":"💊a medicine"}],"matches":[[4,"canonical","medicine"]],"automatic":null},
+  {"name":"Unicode alias tie ranking","query":"cafe","products":[{"id":"emoji","name":"💊a","aliases":["Café"]},{"id":"plain","name":"abc","aliases":["Café"]}],"matches":[[5,"alias","emoji"],[5,"alias","plain"]],"automatic":null}
+]

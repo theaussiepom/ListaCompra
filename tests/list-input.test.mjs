@@ -95,3 +95,33 @@ test('explicitly clicking a competing prefix suggestion still chooses its produc
   assert.equal(ui.items[0].productId, 'liners');
   assert.deepEqual(ui.created, []);
 });
+
+const aliasCases = [
+  { name: 'unique exact alias', query: 'Panadol', products: [{ id: 'medicine', name: 'Paracetamol', aliases: ['Panadol'] }], expected: 'medicine' },
+  { name: 'alias collision', query: 'beans', products: [{ id: 'baked', name: 'Baked beans', aliases: ['Beans'] }, { id: 'kidney', name: 'Kidney beans', aliases: ['Beans'] }] },
+  { name: 'longer branded request', query: '  Panadol  Night  ', products: [{ id: 'medicine', name: 'Paracetamol', aliases: ['Panadol'] }] },
+  { name: 'partial alias', query: 'garbanzo', products: [{ id: 'chickpea', name: 'Chickpea', aliases: ['Garbanzo beans'] }] },
+  { name: 'canonical exact beats alias', query: 'bread', products: [{ id: 'roll', name: 'Roll', aliases: ['Bread'] }, { id: 'bread', name: 'Bread' }], expected: 'bread' },
+];
+
+for (const fixture of aliasCases) {
+  test(`Enter with aliases: ${fixture.name}`, () => {
+    const ui = listInput(fixture.products, fixture.query);
+    ui.enter();
+    if (fixture.expected) {
+      assert.equal(ui.items[0].productId, fixture.expected);
+      assert.deepEqual(ui.created, []);
+    } else {
+      assert.equal(ui.created[0]?.name, fixture.query.trim());
+      assert.equal(ui.items[0].productId, ui.created[0].id);
+    }
+  });
+}
+
+test('explicitly clicking a partial alias suggestion still chooses its product', () => {
+  const ui = listInput([{ id: 'chickpea', name: 'Chickpea', aliases: ['Garbanzo beans'] }], 'garbanzo');
+  assert.equal(ui.suggestions[0].id, 'chickpea');
+  ui.clickSuggestion(ui.suggestions[0].id);
+  assert.equal(ui.items[0].productId, 'chickpea');
+  assert.deepEqual(ui.created, []);
+});

@@ -113,56 +113,74 @@ def match_product(name: str, products: list[dict]) -> dict | None:
     return (match_candidates(name, products) or [None])[0]
 
 
-def match_scored(name: str, products: list[dict]) -> list[tuple[int, dict]]:
-    """(puntuación, producto) de los que casan, del mejor al peor.
-
-    A igual puntuación gana el nombre MÁS CORTO: es el más parecido a lo pedido.
-    Sin ese desempate, "leche" con dos productos que empiezan por "leche" se
-    decidía por el orden del catálogo, que es arbitrario.
-    """
+def match_details(name: str, products: list[dict]) -> list[dict]:
+    """Un candidato por producto, con origen y texto de la mejor coincidencia."""
     q = _norm(name).strip()
     if not q:
         return []
-    puntuados = [
-        (sc, p)
-        for p in products
-        if (sc := _score(_norm(p.get("name", "")), q)) > 0
-    ]
-    puntuados.sort(key=lambda x: (-x[0], len(_norm(x[1].get("name", ""))),
-                                 _norm(x[1].get("name", "")), x[1].get("id", "")))
-    return puntuados
+    matches = []
+    for product in products:
+        text = _norm(product.get("name", ""))
+        best = {"product": product, "score": _score(text, q), "source": "canonical", "text": text}
+        aliases = product.get("aliases")
+        for alias in aliases if isinstance(aliases, list) else []:
+            if not isinstance(alias, str):
+                continue
+            text = _norm(alias).strip()
+            if not text:
+                continue
+            score = _score(text, q)
+            if score > best["score"] or (score == best["score"] and best["source"] == "alias" and text < best["text"]):
+                best = {"product": product, "score": score, "source": "alias", "text": text}
+        if best["score"] > 0:
+            matches.append(best)
+    matches.sort(key=lambda m: (-m["score"], m["source"] == "alias",
+                               len(_norm(m["product"].get("name", ""))),
+                               _norm(m["product"].get("name", "")), m["product"].get("id", "")))
+    return matches
+
+
+def match_scored(name: str, products: list[dict]) -> list[tuple[int, dict]]:
+    return [(m["score"], m["product"]) for m in match_details(name, products)]
 
 
 def match_candidates(name: str, products: list[dict], limit: int = 5) -> list[dict]:
     return [p for _, p in match_scored(name, products)[:limit]]
 
 
-def select_automatic_match(name: str, scored: list[tuple[int, dict]]) -> dict | None:
-    """Solo exactos únicos o prefijos de palabra completa sin competidores léxicos."""
-    if not scored or (len(scored) > 1 and scored[1][0] == scored[0][0]):
+def _top_matches(matches: list[dict]) -> list[dict]:
+    if not matches:
+        return []
+    best = matches[0]
+    return [m for m in matches if m["score"] == best["score"]
+            and (best["score"] != 5 or m["source"] == best["source"])]
+
+
+def select_automatic_match(name: str, matches: list[dict]) -> dict | None:
+    """Los alias solo permiten acciones con coincidencia exacta y única."""
+    top = _top_matches(matches)
+    if len(top) != 1:
         return None
-    score, product = scored[0]
-    if score == 5:
-        return product
+    best = top[0]
+    if best["score"] == 5:
+        return best["product"]
     q = _norm(name).strip()
-    text = _norm(product.get("name", ""))
-    if (score == 4 and len(q) >= 3 and text[len(q):len(q) + 1].isspace()
-            and not any(candidate_score >= 3 for candidate_score, _ in scored[1:])):
-        return product
+    if (best["source"] == "canonical" and best["score"] == 4 and len(q) >= 3
+            and best["text"][len(q):len(q) + 1].isspace()
+            and not any(candidate["score"] >= 3 for candidate in matches[1:])):
+        return best["product"]
     return None
 
 
-def tied_alternatives(scored: list[tuple[int, dict]], limit: int = 3) -> list[str]:
+def tied_alternatives(matches: list[dict], limit: int = 3) -> list[str]:
     """Candidatos fuertes empatados, sin decidir por orden ni repetir nombres."""
-    if len(scored) < 2 or scored[0][0] < 4 or scored[0][0] != scored[1][0]:
+    top = _top_matches(matches)
+    if len(top) < 2 or top[0]["score"] < 4:
         return []
-    mejor = scored[0][0]
     fuera: set[str] = set()
     out: list[str] = []
-    for sc, p in scored:
-        if sc != mejor:
-            break                       # ya vienen ordenados: el resto puntúa menos
-        n = p.get("name", "")
+    for match in top:
+        n = match["product"].get("name", "")
         if _norm(n) in fuera:
             continue                    # mismo nombre en otra sección (p.ej. súper y panadería)
         fuera.add(_norm(n))
@@ -176,7 +194,7 @@ def resolve(name: str, snapshot: dict | None, catalog: dict) -> dict[str, Any]:
     """Devuelve {product, type_id, store_id}. store_id None → va a inbox."""
     snapshot = snapshot or {}
     products = list(catalog.get("products", [])) + list(snapshot.get("customProducts", []))
-    puntuados = match_scored(name, products)
+    puntuados = match_details(name, products)
     product = select_automatic_match(name, puntuados)
     alternativas = tied_alternatives(puntuados)
 
