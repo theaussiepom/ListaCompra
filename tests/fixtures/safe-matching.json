@@ -18,5 +18,6 @@
   {"name":"soda has competing intent","query":"soda","products":[{"id":"water","name":"Soda water"},{"id":"baking","name":"Baking soda"}],"scores":[[4,"water"],[3,"baking"]],"automatic":null},
   {"name":"litter has competing intent","query":"litter","products":[{"id":"liners","name":"Litter tray liners"},{"id":"cat","name":"Cat litter"}],"scores":[[4,"liners"],[3,"cat"]],"automatic":null},
   {"name":"safe prefix ignores subsequence noise","query":"mint","products":[{"id":"tea","name":"Mint tea"},{"id":"paste","name":"Mild nut paste"}],"scores":[[4,"tea"],[1,"paste"]],"automatic":"tea"},
-  {"name":"exact beats prefix and substring","query":"milk","products":[{"id":"whole","name":"Milk whole"},{"id":"almond","name":"Almond milk"},{"id":"milk","name":"Milk"}],"scores":[[5,"milk"],[4,"whole"],[3,"almond"]],"automatic":"milk"}
+  {"name":"exact beats prefix and substring","query":"milk","products":[{"id":"whole","name":"Milk whole"},{"id":"almond","name":"Almond milk"},{"id":"milk","name":"Milk"}],"scores":[[5,"milk"],[4,"whole"],[3,"almond"]],"automatic":"milk"},
+  {"name":"Unicode prefix counts code points","query":"💊a","products":[{"id":"medicine","name":"💊a medicine"}],"scores":[[4,"medicine"]],"automatic":null}
 ]

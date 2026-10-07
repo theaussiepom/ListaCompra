@@ -62,7 +62,7 @@ export function selectAutomaticMatch<T extends { name: string; id?: string }>(it
   if (!best || ranked[1]?.score === best.score) return null;
   if (best.score === 5) return best.it;
   const q = norm(query.trim());
-  if (best.score === 4 && q.length >= 3 && /\s/.test(norm(best.it.name).charAt(q.length))
+  if (best.score === 4 && [...q].length >= 3 && /\s/.test(norm(best.it.name).charAt(q.length))
     && !ranked.slice(1).some((candidate) => candidate.score >= 3)) return best.it;
   return null;
 }

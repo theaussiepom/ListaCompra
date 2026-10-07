@@ -43,6 +43,7 @@ function listInput(products, query) {
 
 const cases = [
   { name: 'canonical exact', query: 'MILK', products: [{ id: 'milk', name: 'Milk', defaultUnit: 'l' }], expected: 'milk' },
+  { name: 'two-code-point Unicode prefix remains literal', query: '💊a', products: [{ id: 'medicine', name: '💊a medicine' }] },
   { name: 'unique whole-word prefix', query: 'milk', products: [{ id: 'whole', name: 'Milk whole' }], expected: 'whole' },
   { name: 'prefix with substring competitor', query: 'milk', products: [{ id: 'whole', name: 'Milk whole' }, { id: 'almond', name: 'Almond milk' }] },
   { name: 'soda has competing intent', query: 'soda', products: [{ id: 'water', name: 'Soda water' }, { id: 'baking', name: 'Baking soda' }] },

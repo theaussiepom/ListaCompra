@@ -2,6 +2,7 @@
 import asyncio
 import importlib.util
 import json
+import subprocess
 import sys
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
@@ -72,3 +73,24 @@ def test_service_preserves_unresolved_request(monkeypatch, name):
     assert item["productId"] == result["product_id"]
     assert item["qty"] == 2.5
     assert item["unit"] == "kg"
+
+
+def test_actual_typescript_and_python_safe_matching_parity():
+    script = """
+      import { readFileSync } from 'node:fs';
+      import { rankScoredMatches, selectAutomaticMatch } from './src/lib/search.ts';
+      const cases = JSON.parse(readFileSync('tests/fixtures/safe-matching.json', 'utf8'));
+      console.log(JSON.stringify(cases.map(c => ({
+        automatic: selectAutomaticMatch(c.products, c.query)?.id ?? null,
+        ranked: rankScoredMatches(c.products, c.query).map(m => [m.score, m.it.id]),
+      }))));
+    """
+    result = subprocess.run(["node", "--import", "tsx", "--input-type=module", "-e", script],
+                            cwd=ROOT, check=True, capture_output=True, text=True)
+    for case, frontend in zip(CASES, json.loads(result.stdout), strict=True):
+        scored = routing.match_scored(case["query"], case["products"])
+        product = routing.select_automatic_match(case["query"], scored)
+        assert frontend == {
+            "automatic": (product or {}).get("id"),
+            "ranked": [[score, p["id"]] for score, p in scored],
+        }, case["name"]
