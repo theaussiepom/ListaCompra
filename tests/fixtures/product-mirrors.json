@@ -1,0 +1,638 @@
+[
+  {
+    "name": "legacy canonical exact",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      }
+    ],
+    "automatic": "mince",
+    "valid": true
+  },
+  {
+    "name": "canonical and exact mirror",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      }
+    ],
+    "automatic": "mince",
+    "valid": true,
+    "ranked": [
+      "butcher-mince",
+      "mince"
+    ]
+  },
+  {
+    "name": "multiple mirrors one concept",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      },
+      {
+        "id": "second-mince",
+        "name": "Beef mince",
+        "categoryId": "another-type",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      }
+    ],
+    "automatic": "mince",
+    "valid": true
+  },
+  {
+    "name": "unrelated exact duplicate concepts",
+    "query": "bread",
+    "products": [
+      {
+        "id": "bread",
+        "name": "Bread"
+      },
+      {
+        "id": "loaf",
+        "name": "Bread"
+      }
+    ],
+    "automatic": null,
+    "valid": true
+  },
+  {
+    "name": "mirror group and unrelated exact concept",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      },
+      {
+        "id": "other",
+        "name": "Beef mince"
+      }
+    ],
+    "automatic": null,
+    "valid": true
+  },
+  {
+    "name": "missing target",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      }
+    ],
+    "automatic": null,
+    "valid": false
+  },
+  {
+    "name": "self mirror",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg",
+        "mirrorOf": "mince"
+      }
+    ],
+    "automatic": null,
+    "valid": false
+  },
+  {
+    "name": "mirror chain",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg",
+        "mirrorOf": "root"
+      },
+      {
+        "id": "root",
+        "name": "Another name"
+      }
+    ],
+    "automatic": null,
+    "valid": false
+  },
+  {
+    "name": "mirror cycle",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg",
+        "mirrorOf": "butcher-mince"
+      }
+    ],
+    "automatic": null,
+    "valid": false
+  },
+  {
+    "name": "exact canonical text beats unrelated alias",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      },
+      {
+        "id": "other",
+        "name": "Other",
+        "aliases": [
+          "Beef mince"
+        ]
+      }
+    ],
+    "automatic": "mince",
+    "valid": true
+  },
+  {
+    "name": "exact canonical alias with mirrors",
+    "query": "ground meat",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg",
+        "aliases": [
+          "Ground meat"
+        ]
+      }
+    ],
+    "automatic": "mince",
+    "valid": true
+  },
+  {
+    "name": "alias collision across concepts",
+    "query": "ground meat",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg",
+        "aliases": [
+          "Ground meat"
+        ]
+      },
+      {
+        "id": "other",
+        "name": "Other",
+        "aliases": [
+          "Ground meat"
+        ]
+      }
+    ],
+    "automatic": null,
+    "valid": true
+  },
+  {
+    "name": "mirror own alias resolves canonical",
+    "query": "ground meat",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher",
+        "aliases": [
+          "Ground meat"
+        ]
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      }
+    ],
+    "automatic": "mince",
+    "valid": true
+  },
+  {
+    "name": "different mirror name returns nonmatching canonical",
+    "query": "ground meat",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Ground meat",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      }
+    ],
+    "automatic": "mince",
+    "valid": true
+  },
+  {
+    "name": "prefix exact mirror does not manufacture ambiguity",
+    "query": "beef",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      }
+    ],
+    "automatic": "mince",
+    "valid": true
+  },
+  {
+    "name": "prefix substring mirror same concept",
+    "query": "beef",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Lean beef",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      }
+    ],
+    "automatic": "mince",
+    "valid": true
+  },
+  {
+    "name": "prefix substring different concept",
+    "query": "beef",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      },
+      {
+        "id": "other",
+        "name": "Lean beef"
+      }
+    ],
+    "automatic": null,
+    "valid": true
+  },
+  {
+    "name": "prefix invalid substring competitor",
+    "query": "beef",
+    "products": [
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      },
+      {
+        "id": "invalid",
+        "name": "Lean beef",
+        "mirrorOf": "absent"
+      }
+    ],
+    "automatic": null,
+    "valid": false
+  },
+  {
+    "name": "malformed lower priority alias cannot defeat exact name",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      },
+      {
+        "id": "invalid",
+        "name": "Other",
+        "mirrorOf": "absent",
+        "aliases": [
+          "Beef mince"
+        ]
+      }
+    ],
+    "automatic": "mince",
+    "valid": false
+  },
+  {
+    "name": "duplicate canonical id even when duplicate does not match",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      },
+      {
+        "id": "mince",
+        "name": "Other"
+      }
+    ],
+    "automatic": null,
+    "valid": false
+  },
+  {
+    "name": "duplicate mirror id",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      },
+      {
+        "id": "butcher-mince",
+        "name": "Other",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      }
+    ],
+    "automatic": null,
+    "valid": false
+  },
+  {
+    "name": "unrelated invalid metadata does not block valid exact",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      },
+      {
+        "id": "invalid",
+        "name": "Zzz",
+        "mirrorOf": "absent"
+      }
+    ],
+    "automatic": "mince",
+    "valid": false
+  },
+  {
+    "name": "empty mirror target",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg",
+        "mirrorOf": ""
+      }
+    ],
+    "automatic": null,
+    "valid": false
+  },
+  {
+    "name": "null mirror metadata",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg",
+        "mirrorOf": null
+      }
+    ],
+    "automatic": null,
+    "valid": false
+  },
+  {
+    "name": "nonstring mirror metadata",
+    "query": "beef mince",
+    "products": [
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg",
+        "mirrorOf": 7
+      }
+    ],
+    "automatic": null,
+    "valid": false
+  },
+  {
+    "name": "canonical and mirror alias one concept",
+    "query": "ground meat",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher",
+        "aliases": [
+          "Ground meat"
+        ]
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg",
+        "aliases": [
+          "Ground meat"
+        ]
+      }
+    ],
+    "automatic": "mince",
+    "valid": true
+  },
+  {
+    "name": "alias only prefix remains unsafe with mirrors",
+    "query": "ground",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher",
+        "aliases": [
+          "Ground meat"
+        ]
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      }
+    ],
+    "automatic": null,
+    "valid": true
+  },
+  {
+    "name": "safe prefix with weak subsequence noise",
+    "query": "beef",
+    "products": [
+      {
+        "id": "butcher-mince",
+        "name": "Beef mince",
+        "categoryId": "butcher-beef",
+        "defaultUnit": "g",
+        "mirrorOf": "mince",
+        "storeId": "butcher"
+      },
+      {
+        "id": "mince",
+        "name": "Beef mince",
+        "categoryId": "market-meat",
+        "defaultUnit": "kg"
+      },
+      {
+        "id": "noise",
+        "name": "Big elegant elephant food"
+      }
+    ],
+    "automatic": "mince",
+    "valid": true
+  }
+]

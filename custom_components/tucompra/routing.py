@@ -11,7 +11,7 @@ import json
 import re
 import unicodedata
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 INBOX_STORE_ID = "inbox"
 
@@ -156,19 +156,53 @@ def _top_matches(matches: list[dict]) -> list[dict]:
             and (best["score"] != 5 or m["source"] == best["source"])]
 
 
-def select_automatic_match(name: str, matches: list[dict]) -> dict | None:
+def get_product_concept_resolver(products: list[dict]) -> Callable[[dict], dict | None]:
+    """Solo colapsa destinos directos y únicos presentes en este catálogo."""
+    by_id: dict[str, dict] = {}
+    duplicates: set[str] = set()
+    for product in products:
+        product_id = product.get("id")
+        if not isinstance(product_id, str) or not product_id:
+            continue
+        if product_id in by_id:
+            duplicates.add(product_id)
+        else:
+            by_id[product_id] = product
+
+    def concept(product: dict) -> dict | None:
+        if product.get("id") in duplicates:
+            return None
+        if "mirrorOf" not in product:
+            return product
+        target_id = product["mirrorOf"]
+        if not isinstance(target_id, str) or not target_id or target_id == product.get("id"):
+            return None
+        target = by_id.get(target_id)
+        if target is None or target_id in duplicates or "mirrorOf" in target:
+            return None
+        return target
+
+    return concept
+
+
+def select_automatic_match(name: str, matches: list[dict], products: list[dict] | None = None) -> dict | None:
     """Los alias solo permiten acciones con coincidencia exacta y única."""
     top = _top_matches(matches)
-    if len(top) != 1:
+    if not top:
         return None
     best = top[0]
+    # El destino puede tener otro nombre y no figurar entre las coincidencias.
+    concept = get_product_concept_resolver(products if products is not None else [m["product"] for m in matches])
+    canonical = concept(best["product"])
+    if canonical is None or any(concept(candidate["product"]) is not canonical for candidate in top):
+        return None
     if best["score"] == 5:
-        return best["product"]
+        return canonical
     q = _norm(name).strip()
     if (best["source"] == "canonical" and best["score"] == 4 and len(q) >= 3
             and best["text"][len(q):len(q) + 1].isspace()
-            and not any(candidate["score"] >= 3 for candidate in matches[1:])):
-        return best["product"]
+            and not any(candidate["score"] >= 3 and concept(candidate["product"]) is not canonical for candidate in matches)):
+        return canonical
     return None
 
 
@@ -195,8 +229,8 @@ def resolve(name: str, snapshot: dict | None, catalog: dict) -> dict[str, Any]:
     snapshot = snapshot or {}
     products = list(catalog.get("products", [])) + list(snapshot.get("customProducts", []))
     puntuados = match_details(name, products)
-    product = select_automatic_match(name, puntuados)
-    alternativas = tied_alternatives(puntuados)
+    product = select_automatic_match(name, puntuados, products)
+    alternativas = [] if product else tied_alternatives(puntuados)
 
     cat_type = {c["id"]: c["typeId"] for c in catalog.get("categories", [])}
     stores = {s["id"]: s for s in catalog.get("stores", [])}
