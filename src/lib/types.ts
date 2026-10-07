@@ -61,6 +61,8 @@ export interface Product {
   id: string;
   name: string;
   categoryId: Category['id'];
+  /** Nombres alternativos para buscar el mismo producto, sin duplicar su ID. */
+  aliases?: string[];
   icon: IconRef;
   defaultUnit: Unit;
   /** Imagen personalizada subida por el usuario (dataURL) */
