@@ -158,9 +158,12 @@ Tesco Everyday Value…) so they don't show up in your other supermarkets.
 Coverage is mostly **food** and strongest in Europe; if a product isn't found,
 just type the name.
 
-> **Note:** barcode scanning uses the browser's native `BarcodeDetector`, which
-> exists in **Chrome/Edge** (Android and desktop) but **not in Safari/iOS or
-> Firefox**. On those, type the number instead.
+> **Note:** barcode scanning uses native `BarcodeDetector` when it is usable and
+> supports the required formats. Otherwise, including on **Safari/iOS and
+> Firefox** without a usable native detector, Tu Compra falls back to the bundled
+> local **ZXing/WASM scanner**. No cloud scanner is needed; manual entry remains
+> available. Open Food Facts name lookup is separate and optional. Real-device
+> acceptance on iPhone and Home Assistant Companion is still pending.
 
 > **Requirements:** Home Assistant **2024.7+**. For the integration icon to be
 > displayed, Home Assistant **2026.3+** is required (local brand images).
@@ -202,9 +205,9 @@ HA user who is currently logged in:
 The integration exposes a **`tucompra.add_item`** service that adds a product
 **by name** and **routes it to the correct store automatically**:
 
-1. It recognises the product with fuzzy search across the catalog **of your Home
-   Assistant language** — say "nappies", "diapers", "couches" or "pañales"
-   depending on where you are, not the Spanish name.
+1. It recognises the product with fuzzy search across the **active list/share's
+   catalogue**. Shared-list members use the same catalogue, independently of
+   their display language.
 2. From the product it derives the **store type** (milk → supermarket, chops →
    butcher, ibuprofen → pharmacy…).
 3. It puts the item in your **default store** for that type.
@@ -213,6 +216,10 @@ The integration exposes a **`tucompra.add_item`** service that adds a product
    button) sends it to the right store.
 
 You never have to say the store out loud — the product itself implies it.
+
+New or empty shares without a saved catalogue choose one from HA language/country
+(or browser locale outside HA). Populated shares retain their existing catalogue;
+changing display language does not migrate products.
 
 ### Default stores
 
@@ -291,9 +298,9 @@ Restart Home Assistant, then say or type in Assist:
 
 > *"add milk to the shopping list"*
 
-Use the name as it is called **where you live**: the catalog follows your Home
-Assistant language, so a UK instance knows "toilet roll" and a US one "toilet
-paper".
+Use a product name or supported synonym from your **active list/share's
+catalogue**: a UK catalogue knows "toilet roll" and a US one "toilet paper",
+even when the current HA language or country differs.
 
 > ⚠️ **Custom sentences are only understood by the "Home Assistant" conversation
 > agent.** If you use an LLM agent (Gemini, ChatGPT…), either switch the agent to
@@ -328,7 +335,7 @@ create" means nothing is ever blocked by a missing product.
 - [x] Visual store editor (create / edit / delete)
 - [x] Custom photo upload for stores
 - [x] Local Home Assistant integration (HACS): API + panel + shared lists
-- [x] Culture-aware catalog by HA language (🇪🇸🇬🇧🇺🇸🇫🇷🇩🇪🇧🇷) + SVG flag
+- [x] Culture-aware catalogues pinned per share (🇪🇸🇬🇧🇺🇸🇫🇷🇩🇪🇧🇷🇦🇺) + SVG flag
 - [x] Voice via Assist: `tucompra.add_item` service with automatic store routing
 - [x] "To sort" tray with one-tap triage to the right store
 - [x] Integration icon bundled (shown on install)
@@ -385,7 +392,8 @@ del resto de España (jamón ibérico, fabes, turrón de Jijona…).
 
 ## Características principales
 
-- 🌍 **Multi-cultura**: tiendas y productos según el idioma/país de HA
+- 🌍 **Multi-cultura**: tiendas y productos según el catálogo guardado de cada
+  lista personal o compartida
   (Eroski/Mercadona, Tesco, Walmart, Carrefour, Aldi, Pão de Açúcar, Woolworths…), con
   secciones traducidas y una **bandera** junto al selector de tema.
 - 🏪 **Editor visual de tiendas**: crear, editar, ocultar, borrar y foto propia.
@@ -451,9 +459,12 @@ aparezcan en tus otros supermercados.
 La cobertura es sobre todo de **alimentación** y mejor en Europa; si no lo
 encuentra, escribes el nombre.
 
-> **Nota:** el escaneo usa `BarcodeDetector`, la API nativa del navegador, que
-> existe en **Chrome/Edge** (Android y escritorio) pero **no en Safari/iOS ni
-> Firefox**. Ahí se escribe el número a mano.
+> **Nota:** el escaneo usa `BarcodeDetector` nativo cuando es utilizable y admite
+> los formatos necesarios. En caso contrario, también en **Safari/iOS y Firefox**
+> sin un detector nativo utilizable, Tu Compra usa el **escáner ZXing/WASM local**
+> incluido. No necesita un escáner en la nube; la entrada manual sigue disponible.
+> La búsqueda de nombres en Open Food Facts es independiente y opcional. La
+> aceptación en dispositivos reales iPhone y Home Assistant Companion sigue pendiente.
 
 > **Requisitos:** Home Assistant **2024.7+**. Para que se vea el icono de la
 > integración hace falta **2026.3+**.
