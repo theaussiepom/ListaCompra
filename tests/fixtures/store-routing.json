@@ -1,0 +1,14 @@
+[
+  {"name":"matching enabled default","stores":[{"id":"a","typeId":"market"},{"id":"b","typeId":"market"}],"defaults":{"market":"b"},"expected":"b"},
+  {"name":"wrong-type default","stores":[{"id":"a","typeId":"market"},{"id":"b","typeId":"pharmacy"}],"defaults":{"market":"b"},"expected":"a"},
+  {"name":"disabled default","stores":[{"id":"a","typeId":"market"},{"id":"b","typeId":"market","enabled":false}],"defaults":{"market":"b"},"expected":"a"},
+  {"name":"missing default","stores":[{"id":"a","typeId":"market"}],"defaults":{"market":"missing"},"expected":"a"},
+  {"name":"single enabled store","stores":[{"id":"a","typeId":"market","enabled":true},{"id":"b","typeId":"market","enabled":false}],"expected":"a"},
+  {"name":"multiple matching stores","stores":[{"id":"a","typeId":"market"},{"id":"b","typeId":"market"}],"expected":null},
+  {"name":"no matching store","stores":[{"id":"b","typeId":"pharmacy"}],"expected":null},
+  {"name":"valid exclusive beats default","stores":[{"id":"a","typeId":"market"},{"id":"b","typeId":"market"}],"defaults":{"market":"b"},"exclusive":"a","expected":"a"},
+  {"name":"missing exclusive","stores":[{"id":"a","typeId":"market"}],"defaults":{"market":"a"},"exclusive":"missing","expected":null},
+  {"name":"disabled exclusive","stores":[{"id":"a","typeId":"market"},{"id":"b","typeId":"market","enabled":false}],"defaults":{"market":"a"},"exclusive":"b","expected":null},
+  {"name":"wrong-type exclusive","stores":[{"id":"a","typeId":"market"},{"id":"b","typeId":"pharmacy"}],"defaults":{"market":"a"},"exclusive":"b","expected":null},
+  {"name":"exclusive with unknown category","stores":[{"id":"a","typeId":"market"}],"exclusive":"a","unknownCategory":true,"expected":null}
+]
