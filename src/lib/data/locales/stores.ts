@@ -1,6 +1,7 @@
 import type { Store } from '../../types';
 import type { Locale } from '../../i18n/locale';
 import { STORES_SEED } from '../stores';
+import { STORES_AU } from './au-stores';
 
 // Tiendas por cultura. Los IDs van prefijados por locale para no colisionar si
 // el usuario cambia de idioma. Se usan badges de color (sin logos) para las
@@ -124,4 +125,5 @@ export const LOCALIZED_STORES: Record<Locale, Store[]> = {
   fr: FR,
   de: DE,
   br: BR,
+  au: STORES_AU,
 };

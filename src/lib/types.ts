@@ -2,6 +2,8 @@
 // El modelo es jerárquico: TipoTienda > Categoría > Producto, y
 // cada Tienda concreta apunta a un TipoTienda (Eroski → Supermercado, etc.).
 
+import type { Locale } from './i18n/locale';
+
 export type Unit = 'unidad' | 'kg' | 'g' | 'l' | 'ml' | 'paquete' | 'docena' | 'caja';
 
 export type IconRef =
@@ -135,9 +137,9 @@ export interface AppState {
    *  tiendas de ese tipo, aquí se fija a cuál va. Lo gestiona el administrador. */
   defaultStores?: Record<StoreType['id'], Store['id']>;
   /** Idioma de interfaz de este dispositivo; no cambia la identidad del catálogo. */
-  locale?: 'es' | 'en' | 'us' | 'fr' | 'de' | 'br';
+  locale?: Locale;
   /** Identidad del catálogo compartida y persistente, independiente del idioma de HA. */
-  catalogLocale?: 'es' | 'en' | 'us' | 'fr' | 'de' | 'br';
+  catalogLocale?: Locale;
   /** Icono elegido por el usuario para un producto, incluidos los del seed.
    *
    *  Vive APARTE de `products` porque refreshSeed() reemplaza el seed entero en

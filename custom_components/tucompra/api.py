@@ -44,7 +44,7 @@ OFF_FIELDS = (
     # small ≈200 px como respaldo si no existe la anterior.
     "image_front_display_url,image_front_small_url"
 )
-OFF_LANGUAGES = {"es": "es", "en": "en", "us": "en", "fr": "fr", "de": "de", "br": "pt"}
+OFF_LANGUAGES = {"es": "es", "en": "en", "us": "en", "fr": "fr", "de": "de", "br": "pt", "au": "en"}
 
 
 def _localized_lookup(cached: dict, locale: str) -> dict:

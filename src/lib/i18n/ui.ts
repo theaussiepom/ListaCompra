@@ -1221,7 +1221,7 @@ const BR: Dict = {
   'sync.status': 'Ver o status da sincronização',
 };
 
-const UI: Record<Locale, Dict> = { es: ES, en: EN, us: US, fr: FR, de: DE, br: BR };
+const UI: Record<Locale, Dict> = { es: ES, en: EN, us: US, fr: FR, de: DE, br: BR, au: EN };
 
 /** Traduce una clave al locale dado. `{var}` se sustituye por `vars.var`. */
 export function translate(

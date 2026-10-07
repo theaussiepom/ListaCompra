@@ -5,9 +5,9 @@
 //  - qué catálogo de tiendas/productos cargar (seed localizado), y
 //  - qué bandera mostrar junto al selector de tema.
 
-export type Locale = 'es' | 'en' | 'us' | 'fr' | 'de' | 'br';
+export type Locale = 'es' | 'en' | 'us' | 'fr' | 'de' | 'br' | 'au';
 
-export const LOCALES: Locale[] = ['es', 'en', 'us', 'fr', 'de', 'br'];
+export const LOCALES: Locale[] = ['es', 'en', 'us', 'fr', 'de', 'br', 'au'];
 
 /** Catálogo por defecto cuando el idioma no es ninguno de los soportados.
  *  Inglés y no español: el proyecto nace en Euskadi, pero se publica en HACS
@@ -21,7 +21,7 @@ export function resolveLocale(language?: string, country?: string): Locale {
   if (lang === 'de') return 'de';
   if (lang === 'fr') return 'fr';
   if (lang === 'pt') return 'br';
-  if (lang === 'en') return cc === 'US' ? 'us' : 'en';
+  if (lang === 'en') return cc === 'AU' ? 'au' : cc === 'US' ? 'us' : 'en';
   // Lenguas cooficiales de España: el catálogo español es el que les sirve.
   // Sin esto caerían al DEFAULT_LOCALE inglés, que para un HA en euskera sería
   // absurdo (este proyecto nace precisamente en Euskadi).
@@ -62,11 +62,11 @@ export function localeFlag(language?: string, country?: string): string {
 }
 
 export const LOCALE_LABEL: Record<Locale, string> = {
-  es: 'España', en: 'UK', us: 'USA', fr: 'France', de: 'Deutschland', br: 'Brasil',
+  es: 'España', en: 'UK', us: 'USA', fr: 'France', de: 'Deutschland', br: 'Brasil', au: 'Australia',
 };
 
 // Bandera del catálogo cargado (locale efectivo). Fiable aunque HA no reporte
 // país: siempre coincide con las tiendas/productos que se están mostrando.
 export const LOCALE_FLAG: Record<Locale, string> = {
-  es: '🇪🇸', en: '🇬🇧', us: '🇺🇸', fr: '🇫🇷', de: '🇩🇪', br: '🇧🇷',
+  es: '🇪🇸', en: '🇬🇧', us: '🇺🇸', fr: '🇫🇷', de: '🇩🇪', br: '🇧🇷', au: '🇦🇺',
 };

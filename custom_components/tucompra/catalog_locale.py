@@ -6,7 +6,7 @@ from typing import Any
 
 from .routing import get_product_concept_resolver
 
-LOCALES = ("es", "en", "us", "fr", "de", "br")
+LOCALES = ("es", "en", "us", "fr", "de", "br", "au")
 
 
 def catalog_references(snapshot: dict, catalog: dict) -> tuple[set[str], set[str]]:

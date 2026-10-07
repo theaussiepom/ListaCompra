@@ -3,7 +3,7 @@ import { isFallbackCategory } from './categories';
 import { DEFAULT_LOCALE, type Locale } from './i18n/locale';
 
 const DISPLAY_LOCALES: Record<Locale, string> = {
-  es: 'es-ES', en: 'en-GB', us: 'en-US', fr: 'fr-FR', de: 'de-DE', br: 'pt-BR',
+  es: 'es-ES', en: 'en-GB', us: 'en-US', fr: 'fr-FR', de: 'de-DE', br: 'pt-BR', au: 'en-AU',
 };
 
 type NamedCategory = Pick<Category, 'id' | 'typeId' | 'name'>;

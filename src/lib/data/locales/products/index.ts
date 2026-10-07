@@ -6,6 +6,7 @@ import { US } from './us';
 import { FR } from './fr';
 import { DE } from './de';
 import { BR } from './br';
+import { PRODUCTS_AU } from './au';
 
 // Catálogos de productos por cultura, un archivo por país (igual que el seed
 // español está troceado por áreas). Referencian las categorías universales
@@ -17,4 +18,5 @@ export const LOCALIZED_PRODUCTS: Record<Locale, Product[]> = {
   fr: FR,
   de: DE,
   br: BR,
+  au: PRODUCTS_AU,
 };
