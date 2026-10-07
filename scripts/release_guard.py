@@ -9,7 +9,7 @@ import subprocess
 
 REPOSITORY = "theaussiepom/ListaCompra"
 MAINTAINED_REF = "refs/remotes/origin/ben/tucompra"
-REQUIRED_CHECKS = ("identity", "version-collision", "python-install", "npm-ci", "types", "catalogue", "node-tests", "python-tests", "ha-build", "zip")
+REQUIRED_CHECKS = ("identity", "version-collision", "python-install", "npm-ci", "types", "catalogue", "node-tests", "python-tests", "ha-build", "panel-normalization", "zip")
 
 
 class ReleaseError(ValueError):

@@ -261,3 +261,5 @@ def test_workflow_permissions_and_dependency_gate():
     old = yaml.load((ROOT / ".github/workflows/release.yml").read_text(), Loader=yaml.BaseLoader)
     assert old["permissions"] == {"contents": "read"}
     assert "contents: write" not in (ROOT / ".github/workflows/release.yml").read_text()
+    validation = yaml.load((ROOT / ".github/workflows/validate.yml").read_text(), Loader=yaml.BaseLoader)
+    assert validation["permissions"] == {"contents": "read"}

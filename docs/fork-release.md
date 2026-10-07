@@ -125,6 +125,18 @@ opens and validates the archive, and writes `release-report.json` including the
 source SHA and ZIP SHA-256. It requires no pre-existing generated panel or
 catalogue and must stop on any install, test, build or archive failure.
 
+The locked Astro build includes the absolute temporary checkout path in its
+client-only island identifier. After building, preflight normalizes only that
+development hot-reload identifier in the generated HTML using the island's
+runtime attributes. It preserves every other byte. The helper requires the
+reviewed Astro/Svelte adapter versions and the single empty client-only AppShell
+contract, and refuses changed structure or additional identifier references.
+This removes checkout-path variation without changing source files or runtime
+hydration inputs. Re-review the helper when upgrading these dependencies or
+changing the island structure. ZIP entry order, timestamps and permissions are
+also fixed; repeat preflight in separate temporary directories to verify the
+candidate archive's reproducibility under the recorded toolchain.
+
 Archive validation checks the actual root layout, required Python and panel
 files, catalogue, manifest version and original licence. It rejects development
 files, caches and other unexpected distribution content. It also verifies

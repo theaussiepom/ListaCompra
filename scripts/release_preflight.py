@@ -18,6 +18,7 @@ from release_guard import (
     validate_collisions, validate_source, validate_version,
 )
 from release_package import package
+from release_panel import normalize_panel
 
 
 def execute_checks(root: Path, output: Path, python: str, report: dict, runner=subprocess.run):
@@ -101,6 +102,8 @@ def preflight(repo: Path, source_sha: str, version: str, output: Path, *, tag_ev
             execute_checks(snapshot, output, python, report)
             if hashlib.sha256((snapshot / "package-lock.json").read_bytes()).hexdigest() != lock_before:
                 raise ReleaseError("Locked dependency installation/build changed package-lock.json")
+            report["panel_normalization"] = normalize_panel(snapshot)
+            report["checks"]["panel-normalization"] = "passed"
             # Las cachés sólo pertenecen a esta copia temporal generada.
             for cache in (snapshot / "custom_components/tucompra").rglob("__pycache__"):
                 shutil.rmtree(cache)
