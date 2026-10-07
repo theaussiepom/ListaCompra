@@ -41,11 +41,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      # `npm install`, no `npm ci`: el repo no tiene package-lock.json y ci lo
-      # exige. Es lo que usan deploy.yml y release.yml.
       - run: npm install
+      - run: npm run check
       # Genera catalog.json para que la prueba pueda comprobar que lleva los
-      # seis idiomas y no solo el español.
+      # todos los locales y no solo el español.
       - run: npm run export:catalog
+      - name: Tests de frontend
+        run: |
+          if compgen -G 'tests/*.test.mjs' > /dev/null; then
+            node --import tsx --test tests/*.test.mjs
+          fi
       - run: pip install pytest
       - run: pytest tests/ -q
+      - run: npm run build:ha

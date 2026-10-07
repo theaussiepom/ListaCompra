@@ -1,0 +1,22 @@
+[
+  {"name":"exact beats prefix","query":"milk","products":[{"id":"whole","name":"Milk whole"},{"id":"milk","name":"Milk"}],"scores":[[5,"milk"],[4,"whole"]],"automatic":"milk"},
+  {"name":"case and accents","query":"  CAFE  ","products":[{"id":"coffee","name":"Café"}],"scores":[[5,"coffee"]],"automatic":"coffee"},
+  {"name":"unique complete prefix","query":"milk","products":[{"id":"whole","name":"Milk whole"}],"scores":[[4,"whole"]],"automatic":"whole"},
+  {"name":"ambiguous prefix","query":"milk","products":[{"id":"whole","name":"Milk whole"},{"id":"skim","name":"Milk skimmed"}],"scores":[[4,"whole"],[4,"skim"]],"automatic":null},
+  {"name":"substring does not infer intent","query":"detergent","products":[{"id":"laundry","name":"Laundry detergent"}],"scores":[[3,"laundry"]],"automatic":null},
+  {"name":"unordered words","query":"cream coffee","products":[{"id":"coffee","name":"Coffee with cream"}],"scores":[[2,"coffee"]],"automatic":null},
+  {"name":"subsequence","query":"abc","products":[{"id":"cabbage","name":"A bright cabbage"}],"scores":[[1,"cabbage"]],"automatic":null},
+  {"name":"short prefix fragment","query":"pa","products":[{"id":"medicine","name":"Paracetamol"}],"scores":[[4,"medicine"]],"automatic":null},
+  {"name":"long prefix fragment","query":"paraceta","products":[{"id":"medicine","name":"Paracetamol"}],"scores":[[4,"medicine"]],"automatic":null},
+  {"name":"canonical identity tie","query":"bread","products":[{"id":"bakery","name":"Bread"},{"id":"market","name":"Bread"}],"scores":[[5,"bakery"],[5,"market"]],"automatic":null},
+  {"name":"custom exact","query":"My usual coffee","products":[{"id":"custom-coffee","name":"My usual coffee"}],"scores":[[5,"custom-coffee"]],"automatic":"custom-coffee"},
+  {"name":"unknown phrase","query":"  MiXeD Brand Night  ","products":[{"id":"milk","name":"Milk"}],"scores":[],"automatic":null},
+  {"name":"whitespace subsequence parity","query":"a\tbc","products":[{"id":"cabbage","name":"A bright cabbage"}],"scores":[[1,"cabbage"]],"automatic":null},
+  {"name":"combining mark parity","query":"CAFE","products":[{"id":"coffee","name":"Cafe\u1ab0"}],"scores":[[5,"coffee"]],"automatic":"coffee"},
+  {"name":"empty input","query":"  ","products":[{"id":"milk","name":"Milk"}],"scores":[],"automatic":null},
+  {"name":"prefix with substring competitor","query":"milk","products":[{"id":"whole","name":"Milk whole"},{"id":"almond","name":"Almond milk"}],"scores":[[4,"whole"],[3,"almond"]],"automatic":null},
+  {"name":"soda has competing intent","query":"soda","products":[{"id":"water","name":"Soda water"},{"id":"baking","name":"Baking soda"}],"scores":[[4,"water"],[3,"baking"]],"automatic":null},
+  {"name":"litter has competing intent","query":"litter","products":[{"id":"liners","name":"Litter tray liners"},{"id":"cat","name":"Cat litter"}],"scores":[[4,"liners"],[3,"cat"]],"automatic":null},
+  {"name":"safe prefix ignores subsequence noise","query":"mint","products":[{"id":"tea","name":"Mint tea"},{"id":"paste","name":"Mild nut paste"}],"scores":[[4,"tea"],[1,"paste"]],"automatic":"tea"},
+  {"name":"exact beats prefix and substring","query":"milk","products":[{"id":"whole","name":"Milk whole"},{"id":"almond","name":"Almond milk"},{"id":"milk","name":"Milk"}],"scores":[[5,"milk"],[4,"whole"],[3,"almond"]],"automatic":"milk"}
+]

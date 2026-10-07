@@ -3,69 +3,23 @@
 
 import type { AppState, IconRef, ListItem, Product, ShoppingList, Store, UserProfile } from '../types';
 import { createInitialState, loadState, saveState } from '../storage';
-import { getLocalizedSeed, LOCALIZED_STORES } from '../data/locales';
-import { DEFAULT_LOCALE, LOCALES, type Locale } from '../i18n/locale';
-
-// IDs de tienda de TODOS los locales: sirve para distinguir "tienda de seed
-// (de cualquier idioma)" de "tienda custom del usuario".
-const ALL_SEED_STORE_IDS = new Set(
-  LOCALES.flatMap((l) => LOCALIZED_STORES[l].map((s) => s.id)),
-);
+import { refreshCatalog } from '../catalog-locale';
+import { recordLocalChanges } from '../local-sync';
+import { type Locale } from '../i18n/locale';
+import { ensureFallbackCategory } from '../categories';
+import { getDefaultStore, suggestStoreFor } from '../storeRouting';
 
 class AppStore {
   state = $state<AppState>(createInitialState());
   hydrated = $state(false);
 
-  /** Re-sincroniza el seed (tipos, tiendas, categorías, productos) con el locale
-   *  actual. Preserva las customizaciones del usuario (tiendas/productos creados
-   *  por él, enabled/order de tiendas seed, listas). Al cambiar de locale, las
-   *  tiendas/productos del locale anterior se retiran (no son custom). */
   private refreshSeed(): void {
-    const seed = getLocalizedSeed(this.state.locale ?? DEFAULT_LOCALE);
-    const seedStoreIds = new Set(seed.stores.map((s) => s.id));
-    const seedCategoryIds = new Set(seed.categories.map((c) => c.id));
+    this.state = refreshCatalog(this.state);
+  }
 
-    // Tiendas:
-    //  - Editadas por el usuario (edited) del locale actual: se respetan.
-    //  - Seed normales del locale actual: refresh preservando order/enabled.
-    //  - Custom del usuario (id que no es seed de NINGÚN locale): se mantienen.
-    //  - Tiendas seed de OTROS locales: se descartan (cambio de idioma limpio).
-    const localById = new Map(this.state.stores.map((s) => [s.id, s]));
-    const customStores = this.state.stores.filter((s) => !ALL_SEED_STORE_IDS.has(s.id));
-    const editedSeedStores = this.state.stores.filter(
-      (s) => seedStoreIds.has(s.id) && s.edited,
-    );
-    const editedSeedIds = new Set(editedSeedStores.map((s) => s.id));
-
-    this.state.stores = [
-      ...seed.stores
-        .filter((s) => !editedSeedIds.has(s.id))
-        .map((s) => {
-          const local = localById.get(s.id);
-          return { ...s, order: local?.order ?? s.order, enabled: local?.enabled ?? s.enabled };
-        }),
-      ...editedSeedStores,
-      ...customStores,
-    ];
-
-    // Categorías y productos: refresco completo del seed localizado; preservamos
-    // los custom (categorías no-seed, productos con prefijo custom-).
-    const customCategories = this.state.categories.filter((c) => !seedCategoryIds.has(c.id));
-    this.state.categories = [...seed.categories, ...customCategories];
-
-    const customProducts = this.state.products.filter((p) => p.id.startsWith('custom-'));
-    this.state.products = [...seed.products, ...customProducts];
-
-    // Iconos elegidos por el usuario: se aplican DESPUÉS de rehacer el seed,
-    // que es lo que les permite sobrevivir al arranque y al cambio de idioma.
-    const icons = this.state.productIcons;
-    if (icons && Object.keys(icons).length > 0) {
-      this.state.products = this.state.products.map((p) =>
-        icons[p.id] ? { ...p, icon: icons[p.id] } : p,
-      );
-    }
-
-    this.state.storeTypes = seed.storeTypes;
+  initializeCatalog(locale: Locale): void {
+    this.state = refreshCatalog(this.state, locale);
+    this.persistLocalOnly();
   }
 
   /** Fija el icono de un producto (del seed o custom). `null` lo devuelve al
@@ -83,12 +37,11 @@ class AppStore {
     return !!this.state.productIcons?.[id];
   }
 
-  /** Cambia el locale (idioma/cultura del catálogo) y re-seedea. */
+  /** El idioma de interfaz no migra el catálogo compartido. */
   setLocale(locale: Locale): void {
-    if ((this.state.locale ?? DEFAULT_LOCALE) === locale) return;
+    if (this.state.locale === locale) return;
     this.state.locale = locale;
-    this.refreshSeed();
-    this.persist();
+    this.persistLocalOnly();
   }
 
   hydrate(): void {
@@ -101,6 +54,7 @@ class AppStore {
 
   /** Persiste a LocalStorage y, si la sync está activa, agenda un push a HA. */
   persist(): void {
+    recordLocalChanges(this.state, loadState());
     saveState(this.state);
     // Importación dinámica para no romper SSR ni cargar el bundle de sync
     // si el usuario aún no ha entrado en la app.
@@ -156,12 +110,7 @@ class AppStore {
   /** Devuelve la tienda por defecto de un tipo. Si no hay una fijada y solo
    *  existe una tienda de ese tipo, devuelve esa (default implícito). */
   getDefaultStore(typeId: string): string | undefined {
-    const explicit = this.state.defaultStores?.[typeId];
-    if (explicit && this.state.stores.some((s) => s.id === explicit)) return explicit;
-    const ofType = this.state.stores.filter(
-      (s) => s.typeId === typeId && s.enabled !== false,
-    );
-    return ofType.length === 1 ? ofType[0].id : undefined;
+    return getDefaultStore(typeId, this.state.stores, this.state.defaultStores);
   }
 
   // -------- Catálogo de productos --------
@@ -169,20 +118,7 @@ class AppStore {
    *  que no existe). Lo encajamos bajo la categoría "Otros" del tipo de tienda
    *  donde se está añadiendo, para que aparezca agrupado lógicamente. */
   createFreeProduct(name: string, typeId: string, emoji = '🏷️'): Product {
-    // Busca la categoría "Otros" de ese tipo, o crea una si no existe.
-    let otros = this.state.categories.find(
-      (c) => c.typeId === typeId && c.name.toLowerCase() === 'otros',
-    );
-    if (!otros) {
-      otros = {
-        id: `${typeId}-otros`,
-        name: 'Otros',
-        typeId,
-        icon: { kind: 'emoji', value: '🏷️' },
-        order: 999,
-      };
-      this.state.categories.push(otros);
-    }
+    const otros = ensureFallbackCategory(this.state.categories, typeId);
     const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const product: Product = {
       id,
@@ -324,14 +260,11 @@ class AppStore {
     this.persist();
   }
 
-  /** Sugiere la tienda destino de un producto: su categoría → tipo → tienda
-   *  por defecto de ese tipo. undefined si no se puede deducir. */
+  /** Respeta la tienda exclusiva o deduce una por tipo. undefined → bandeja. */
   suggestStoreFor(productId: string): string | undefined {
     const p = this.state.products.find((x) => x.id === productId);
     if (!p) return undefined;
-    const cat = this.state.categories.find((c) => c.id === p.categoryId);
-    if (!cat) return undefined;
-    return this.getDefaultStore(cat.typeId);
+    return suggestStoreFor(p, this.state.categories, this.state.stores, this.state.defaultStores);
   }
 
   /** Ajusta la cantidad. Si delta hace que baje a <=0, no hace nada (usa

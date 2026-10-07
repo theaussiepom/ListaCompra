@@ -1,0 +1,195 @@
+[
+  {
+    "name": "empty uses resolver",
+    "data": {},
+    "fallback": "fr",
+    "expected": "fr"
+  },
+  {
+    "name": "product evidence beats changed HA",
+    "data": {
+      "lists": {
+        "inbox": {
+          "storeId": "inbox",
+          "items": [
+            {
+              "productId": "uk-apples"
+            }
+          ],
+          "updatedAt": 1
+        }
+      }
+    },
+    "fallback": "de",
+    "expected": "en"
+  },
+  {
+    "name": "default store identifies locale",
+    "data": {
+      "defaultStores": {
+        "supermercado": "us-walmart"
+      }
+    },
+    "fallback": "fr",
+    "expected": "us"
+  },
+  {
+    "name": "usage identifies locale",
+    "data": {
+      "usage": {
+        "uk-tesco": {
+          "uk-apples": 3
+        }
+      }
+    },
+    "fallback": "es",
+    "expected": "en"
+  },
+  {
+    "name": "icons identify locale",
+    "data": {
+      "productIcons": {
+        "uk-apples": {
+          "kind": "emoji",
+          "value": "\ud83d\udc04"
+        }
+      }
+    },
+    "fallback": "es",
+    "expected": "en"
+  },
+  {
+    "name": "custom restriction identifies locale",
+    "data": {
+      "customProducts": [
+        {
+          "id": "custom-1",
+          "storeId": "fr-carrefour"
+        }
+      ]
+    },
+    "fallback": "en",
+    "expected": "fr"
+  },
+  {
+    "name": "loyalty identifies locale",
+    "data": {
+      "customStores": [
+        {
+          "id": "de-rewe",
+          "loyalty": {
+            "code": "123",
+            "format": "qr"
+          }
+        }
+      ]
+    },
+    "fallback": "en",
+    "expected": "de"
+  },
+  {
+    "name": "edited store identifies locale",
+    "data": {
+      "customStores": [
+        {
+          "id": "uk-tesco",
+          "edited": true
+        }
+      ]
+    },
+    "fallback": "es",
+    "expected": "en"
+  },
+  {
+    "name": "consistent explicit legacy locale",
+    "data": {
+      "locale": "en",
+      "defaultStores": {
+        "supermercado": "uk-tesco"
+      }
+    },
+    "fallback": "de",
+    "expected": "en"
+  },
+  {
+    "name": "contradictory explicit locale",
+    "data": {
+      "locale": "fr",
+      "defaultStores": {
+        "supermercado": "uk-tesco"
+      }
+    },
+    "fallback": "de",
+    "expected": "en"
+  },
+  {
+    "name": "mixed references deterministic",
+    "data": {
+      "defaultStores": {
+        "supermercado": "uk-tesco",
+        "farmacia": "fr-pharmacie"
+      }
+    },
+    "fallback": "de",
+    "expected": "en"
+  },
+  {
+    "name": "mixed preserves consistent explicit",
+    "data": {
+      "locale": "fr",
+      "defaultStores": {
+        "supermercado": "uk-tesco",
+        "farmacia": "fr-pharmacie"
+      }
+    },
+    "fallback": "de",
+    "expected": "fr"
+  },
+  {
+    "name": "existing authority beats new evidence",
+    "data": {
+      "catalogLocale": "en",
+      "defaultStores": {
+        "supermercado": "fr-carrefour"
+      }
+    },
+    "fallback": "de",
+    "expected": "en"
+  },
+  {
+    "name": "unknown unsupported legacy value",
+    "data": {
+      "locale": "invalid"
+    },
+    "fallback": "br",
+    "expected": "br"
+  },
+  {
+    "name": "unchanged seed order is not conflicting evidence",
+    "data": {
+      "locale": "en",
+      "stores": [
+        {
+          "id": "eroski",
+          "order": 0
+        }
+      ]
+    },
+    "fallback": "de",
+    "expected": "en"
+  },
+  {
+    "name": "changed seed order identifies locale",
+    "data": {
+      "locale": "en",
+      "stores": [
+        {
+          "id": "eroski",
+          "order": 100
+        }
+      ]
+    },
+    "fallback": "de",
+    "expected": "es"
+  }
+]

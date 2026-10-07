@@ -1,24 +1,37 @@
 // Búsqueda difusa del catálogo, compartida por toda la app.
 //
-// IMPORTANTE: `scoreMatch` es un calco de _score() en
-// custom_components/tucompra/routing.py y tiene que seguir siéndolo. Si divergen,
-// buscar "pan" en la app y pedir "pan" por voz dan productos distintos, que es
-// justo lo que confunde al usuario. Las pruebas de tests/test_routing.py fijan
-// los tramos del lado Python.
+// scoreMatch y selectAutomaticMatch mantienen paridad con routing.py.
+// Las sugerencias son tolerantes; las acciones automáticas exigen confianza.
 
 import type { Product } from './types';
+import { getProductConceptResolver, type ProductIdentity } from './productConcept';
+
+type Searchable = ProductIdentity & { name: string; aliases?: string[] };
+type ScoredMatch<T> = { it: T; score: number; source: 'canonical' | 'alias'; text: string };
 
 /** minúsculas + sin acentos/diacríticos. */
 export const norm = (s: string): string =>
-  (s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  (s ?? '').toLowerCase().normalize('NFD').replace(/\p{Mn}/gu, '');
 
 /** ¿Aparecen los caracteres de `needle` en orden dentro de `hay`? */
 const isSubsequence = (needle: string, hay: string): boolean => {
+  const chars = [...needle];
   let i = 0;
-  for (let j = 0; j < hay.length && i < needle.length; j++) {
-    if (hay[j] === needle[i]) i++;
+  for (const char of hay) {
+    if (char === chars[i]) i++;
   }
-  return i === needle.length;
+  return i === chars.length;
+};
+
+// Orden por puntos Unicode, igual que las cadenas de Python.
+const compareText = (left: string, right: string): number => {
+  const a = [...left];
+  const b = [...right];
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    const diff = a[i].codePointAt(0)! - b[i].codePointAt(0)!;
+    if (diff) return diff;
+  }
+  return a.length - b.length;
 };
 
 /** Puntúa cómo de bien casa `name` con la consulta `q` (ya normalizados).
@@ -39,14 +52,53 @@ export const scoreMatch = (name: string, q: string): number => {
 
 /** Ordena los que casan, del mejor al peor. A igual puntuación gana el nombre
  *  MÁS CORTO: es el más parecido a lo pedido. */
-export function rankMatches<T extends { name: string }>(items: T[], query: string): T[] {
+export function rankScoredMatches<T extends Searchable>(items: T[], query: string): ScoredMatch<T>[] {
   const q = norm(query.trim());
   if (!q) return [];
   return items
-    .map((it) => ({ it, score: scoreMatch(norm(it.name), q) }))
+    .map((it) => {
+      const canonical = norm(it.name);
+      let best: ScoredMatch<T> = { it, score: scoreMatch(canonical, q), source: 'canonical', text: canonical };
+      for (const alias of Array.isArray(it.aliases) ? it.aliases : []) {
+        if (typeof alias !== 'string') continue;
+        const text = norm(alias).trim();
+        if (!text) continue;
+        const score = scoreMatch(text, q);
+        if (score > best.score || (score === best.score && best.source === 'alias' && compareText(text, best.text) < 0)) {
+          best = { it, score, source: 'alias', text };
+        }
+      }
+      return best;
+    })
     .filter((x) => x.score >= 0)
-    .sort((a, b) => b.score - a.score || norm(a.it.name).length - norm(b.it.name).length)
-    .map((x) => x.it);
+    .sort((a, b) => {
+      const order = b.score - a.score || Number(a.source === 'alias') - Number(b.source === 'alias')
+        || [...norm(a.it.name)].length - [...norm(b.it.name)].length;
+      if (order) return order;
+      const left = `${norm(a.it.name)}\0${a.it.id ?? ''}`;
+      const right = `${norm(b.it.name)}\0${b.it.id ?? ''}`;
+      return compareText(left, right);
+    });
+}
+
+export function rankMatches<T extends Searchable>(items: T[], query: string): T[] {
+  return rankScoredMatches(items, query).map((x) => x.it);
+}
+
+/** Los alias solo permiten acciones con coincidencia exacta y única. */
+export function selectAutomaticMatch<T extends Searchable>(items: T[], query: string): T | null {
+  const ranked = rankScoredMatches(items, query);
+  const best = ranked[0];
+  if (!best) return null;
+  const peers = ranked.filter((m) => m.score === best.score && (best.score !== 5 || m.source === best.source));
+  const concept = getProductConceptResolver(items);
+  const canonical = concept(best.it);
+  if (!canonical || peers.some((candidate) => concept(candidate.it) !== canonical)) return null;
+  if (best.score === 5) return canonical;
+  const q = norm(query.trim());
+  if (best.source === 'canonical' && best.score === 4 && [...q].length >= 3 && /\s/.test(best.text.charAt(q.length))
+    && !ranked.some((candidate) => candidate.score >= 3 && concept(candidate.it) !== canonical)) return canonical;
+  return null;
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

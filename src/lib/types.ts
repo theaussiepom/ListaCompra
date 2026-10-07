@@ -2,6 +2,8 @@
 // El modelo es jerárquico: TipoTienda > Categoría > Producto, y
 // cada Tienda concreta apunta a un TipoTienda (Eroski → Supermercado, etc.).
 
+import type { Locale } from './i18n/locale';
+
 export type Unit = 'unidad' | 'kg' | 'g' | 'l' | 'ml' | 'paquete' | 'docena' | 'caja';
 
 export type IconRef =
@@ -61,6 +63,10 @@ export interface Product {
   id: string;
   name: string;
   categoryId: Category['id'];
+  /** Nombres alternativos para buscar el mismo producto, sin duplicar su ID. */
+  aliases?: string[];
+  /** Otra ubicación del mismo concepto; apunta directamente al producto canónico. */
+  mirrorOf?: Product['id'];
   icon: IconRef;
   defaultUnit: Unit;
   /** Imagen personalizada subida por el usuario (dataURL) */
@@ -102,9 +108,20 @@ export interface UserProfile {
   createdAt: number;
 }
 
+export type PendingField = 'customProducts' | 'customStores' | 'customCategories' | 'defaultStores' | 'usage' | 'productIcons';
+
+export interface LocalSyncState {
+  revision: number;
+  fields: Partial<Record<PendingField, number>>;
+  /** Incluye IDs borrados para no resucitar listas aún pendientes de envío. */
+  lists: Record<string, number>;
+}
+
 /** Estado completo persistido en LocalStorage */
 export interface AppState {
   version: 1;
+  /** Control de cambios de este dispositivo, separado de los datos compartidos. */
+  localSync?: LocalSyncState;
   profile?: UserProfile;
   storeTypes: StoreType[];     // catálogo (puede sobreescribir el seed)
   stores: Store[];
@@ -119,10 +136,10 @@ export interface AppState {
    *  (Assist → add_item): un producto implica un tipo de tienda; si hay varias
    *  tiendas de ese tipo, aquí se fija a cuál va. Lo gestiona el administrador. */
   defaultStores?: Record<StoreType['id'], Store['id']>;
-  /** Locale del catálogo (tiendas/productos/idioma de nombres). Se deriva del
-   *  idioma/país de Home Assistant, o del navegador fuera de él. Si el idioma no
-   *  es ninguno de los soportados, DEFAULT_LOCALE ('en'). */
-  locale?: 'es' | 'en' | 'us' | 'fr' | 'de' | 'br';
+  /** Idioma de interfaz de este dispositivo; no cambia la identidad del catálogo. */
+  locale?: Locale;
+  /** Identidad del catálogo compartida y persistente, independiente del idioma de HA. */
+  catalogLocale?: Locale;
   /** Icono elegido por el usuario para un producto, incluidos los del seed.
    *
    *  Vive APARTE de `products` porque refreshSeed() reemplaza el seed entero en

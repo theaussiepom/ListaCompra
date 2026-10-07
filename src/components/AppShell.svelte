@@ -22,7 +22,7 @@
   let showDefaults = $state(false);
 
   // Locale efectivo (catálogo cargado) → determina la bandera SVG mostrada.
-  const activeLocale = $derived(app.state.locale ?? DEFAULT_LOCALE);
+  const activeLocale = $derived(app.state.catalogLocale ?? DEFAULT_LOCALE);
   // Falso hasta resolver la identidad de HA; evita que parpadee el ProfileSetup
   // en el panel antes de saber quién es el usuario logueado.
   let ready = $state(false);
@@ -47,18 +47,11 @@
     // arranca la sync. Fuera de HA queda en modo local puro.
     await hydrateAuth();
 
-    // Localiza el catálogo (tiendas/productos/idioma). Dentro de HA manda el
-    // idioma de HA. Fuera (demo web) sirve el del navegador, pero solo en la
-    // primera visita: setLocale re-seedea y descarta las tiendas del locale
-    // anterior, así que no debe pisar una elección ya guardada.
-    if (syncStatus.inHA) {
-      app.setLocale(resolveLocale(syncStatus.haLanguage, syncStatus.haCountry));
-    } else if (app.state.locale === undefined && !app.state.profile) {
-      // Sin perfil = visita nueva de verdad. `locale === undefined` por sí solo
-      // no basta: también lo es para quien ya venía usando la demo, y a ese
-      // re-seedear le retiraría las tiendas del catálogo con el que trabajaba.
-      app.setLocale(resolveLocaleFromBrowser());
-    }
+    const displayLocale = syncStatus.inHA
+      ? resolveLocale(syncStatus.haLanguage, syncStatus.haCountry)
+      : resolveLocaleFromBrowser();
+    app.setLocale(displayLocale);
+    app.initializeCatalog(displayLocale);
 
     // Dentro de HA la identidad es el usuario/person. logueado: no pedimos
     // nombre, autocompletamos (y lo refrescamos) el perfil con ese person.
@@ -123,14 +116,14 @@
           class="mt-1 inline-flex items-center gap-1 text-xs rounded-full border px-2 py-1 hover:bg-[var(--bg)] transition"
           style="border-color: var(--border);">
           <span class="size-2 rounded-full"
-            style={syncStatus.enabled && syncStatus.connected
+            style={syncStatus.enabled && syncStatus.connected && syncStatus.authoritative
               ? 'background:#22c55e; box-shadow: 0 0 6px #22c55e;'
               : syncStatus.enabled
                 ? 'background:#0ea5e9;'
                 : syncStatus.lastError
                   ? 'background:#ef4444;'
                   : 'background:#94a3b8;'}></span>
-          {syncStatus.enabled && syncStatus.connected
+          {syncStatus.enabled && syncStatus.connected && syncStatus.authoritative
             ? t('sync.on')
             : syncStatus.enabled || syncStatus.inHA
               ? `${t('sync.on')}…`
@@ -149,11 +142,7 @@
         <!-- La bandera refleja el catálogo cargado, venga de HA o del navegador:
              fuera de HA también hay cultura activa, y ocultarla ahí hacía parecer
              que la demo no tenía idioma. -->
-        <span title={syncStatus.inHA
-          ? t('nav.haLanguage', {
-              lang: `${syncStatus.haLanguage || activeLocale}${syncStatus.haCountry ? '-' + syncStatus.haCountry : ''}`,
-            })
-          : t('nav.catalogHint', { label: LOCALE_LABEL[activeLocale] })}>
+        <span title={t('nav.catalogHint', { label: LOCALE_LABEL[activeLocale] })}>
           <Flag locale={activeLocale} />
         </span>
       </div>

@@ -29,6 +29,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN, LOOKUP_ENABLED
 from .store import TuCompraStore
+from .routing import resolve_locale
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,11 +38,25 @@ _LOGGER = logging.getLogger(__name__)
 # la app es local por defecto y esta es la única petición saliente que existe.
 OFF_URL = "https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
 OFF_FIELDS = (
-    "product_name,product_name_es,brands,quantity,categories_tags,"
+    "product_name,product_name_es,product_name_en,product_name_fr,"
+    "product_name_de,product_name_pt,brands,quantity,categories_tags,"
     # display ≈400 px (se puede ampliar en pantalla sin verse borrosa);
     # small ≈200 px como respaldo si no existe la anterior.
     "image_front_display_url,image_front_small_url"
 )
+OFF_LANGUAGES = {"es": "es", "en": "en", "us": "en", "fr": "fr", "de": "de", "br": "pt", "au": "en"}
+
+
+def _localized_lookup(cached: dict, locale: str) -> dict:
+    if cached.get("version") != 2:
+        return cached
+    names = cached.get("names", {})
+    name = names.get(OFF_LANGUAGES[locale]) or names.get("default") or names.get("es") or ""
+    return {
+        **{k: v for k, v in cached.items() if k not in ("version", "names")},
+        "name": name,
+        "found": bool(name),
+    }
 
 # La foto del producto se descarga DESDE HA y se incrusta como data URL, para
 # que el navegador no pida nada a terceros y para que el icono siga funcionando
@@ -117,15 +132,24 @@ class LookupView(HomeAssistantView):
             return self.json_message("Código de barras no válido.", status_code=400)
 
         store = _store(hass)
+        locale = request.query.get("locale")
+        share_id = request.query.get("share")
+        if share_id:
+            if not store.is_member(share_id, request["hass_user"].id):
+                return self.json_message("No eres miembro de este share.", status_code=403)
+            snapshot = await store.async_get_snapshot(share_id)
+            if isinstance(snapshot, dict) and snapshot.get("catalogLocale") in OFF_LANGUAGES:
+                locale = snapshot["catalogLocale"]
+        if locale not in OFF_LANGUAGES:
+            locale = resolve_locale(hass.config.language, hass.config.country)
         cached = store.get_cached_lookup(barcode)
-        # Las entradas guardadas antes de incrustar la foto contienen la URL
-        # remota en 'image'. Se descartan para volver a consultarla y cachear el
-        # data URL: si no, un producto escaneado entonces arrastraría la imagen
-        # rota para siempre.
-        if cached is not None and str(cached.get("image", "")).startswith("http"):
-            cached = None
         if cached is not None:
-            return self.json({"enabled": True, "cached": True, **cached})
+            # La caché antigua guarda un nombre ya traducido: se renueva una vez.
+            # Los resultados negativos sin ficha siguen siendo independientes del idioma.
+            if (cached.get("version") != 2 and cached != {"found": False}) or str(cached.get("image", "")).startswith("http"):
+                cached = None
+        if cached is not None:
+            return self.json({"enabled": True, "cached": True, **_localized_lookup(cached, locale)})
 
         session = async_get_clientsession(hass)
         try:
@@ -144,14 +168,12 @@ class LookupView(HomeAssistantView):
         if (data or {}).get("status") != 1 or not product:
             result = {"found": False}
         else:
-            name = (
-                product.get("product_name_es")
-                or product.get("product_name")
-                or ""
-            ).strip()
             result = {
-                "found": bool(name),
-                "name": name,
+                "version": 2,
+                "names": {
+                    lang: (product.get(f"product_name_{lang}" if lang != "default" else "product_name") or "").strip()
+                    for lang in ("default", "es", "en", "fr", "de", "pt")
+                },
                 "brand": (product.get("brands") or "").split(",")[0].strip(),
                 "quantity": (product.get("quantity") or "").strip(),
                 "categories": product.get("categories_tags") or [],
@@ -165,7 +187,7 @@ class LookupView(HomeAssistantView):
             }
 
         await store.async_cache_lookup(barcode, result)
-        return self.json({"enabled": True, "cached": False, **result})
+        return self.json({"enabled": True, "cached": False, **_localized_lookup(result, locale)})
 
 
 class MeView(HomeAssistantView):
@@ -267,7 +289,7 @@ class StateView(HomeAssistantView):
         return self.json(
             {
                 "share": share_id,
-                "snapshot": store.get_snapshot(share_id),
+                "snapshot": await store.async_get_snapshot(share_id, request.query.get("legacyLocale")),
                 "updatedAt": store.updated_at(share_id),
             }
         )

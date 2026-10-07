@@ -8,9 +8,10 @@ producto dictado por voz. Si no se puede clasificar, va a la bandeja "inbox".
 from __future__ import annotations
 
 import json
+import re
 import unicodedata
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 INBOX_STORE_ID = "inbox"
 
@@ -45,7 +46,7 @@ def resolve_locale(language: str | None, country: str | None) -> str:
     if lang == "pt":
         return "br"
     if lang == "en":
-        return "us" if cc == "US" else "en"
+        return "au" if cc == "AU" else "us" if cc == "US" else "en"
     # Cooficiales de España: el catálogo español es el que les sirve.
     if lang in ("es", "eu", "ca", "gl"):
         return "es"
@@ -103,7 +104,7 @@ def _score(name_n: str, q: str) -> int:
     words = [w for w in q.split() if w]
     if len(words) > 1 and all(w in name_n for w in words):
         return 2
-    if _is_subsequence(q.replace(" ", ""), name_n):
+    if _is_subsequence(re.sub(r"\s+", "", q), name_n):
         return 1
     return -1
 
@@ -112,45 +113,108 @@ def match_product(name: str, products: list[dict]) -> dict | None:
     return (match_candidates(name, products) or [None])[0]
 
 
-def match_scored(name: str, products: list[dict]) -> list[tuple[int, dict]]:
-    """(puntuación, producto) de los que casan, del mejor al peor.
-
-    A igual puntuación gana el nombre MÁS CORTO: es el más parecido a lo pedido.
-    Sin ese desempate, "leche" con dos productos que empiezan por "leche" se
-    decidía por el orden del catálogo, que es arbitrario.
-    """
+def match_details(name: str, products: list[dict]) -> list[dict]:
+    """Un candidato por producto, con origen y texto de la mejor coincidencia."""
     q = _norm(name).strip()
     if not q:
         return []
-    puntuados = [
-        (sc, p)
-        for p in products
-        if (sc := _score(_norm(p.get("name", "")), q)) > 0
-    ]
-    puntuados.sort(key=lambda x: (-x[0], len(_norm(x[1].get("name", "")))))
-    return puntuados
+    matches = []
+    for product in products:
+        text = _norm(product.get("name", ""))
+        best = {"product": product, "score": _score(text, q), "source": "canonical", "text": text}
+        aliases = product.get("aliases")
+        for alias in aliases if isinstance(aliases, list) else []:
+            if not isinstance(alias, str):
+                continue
+            text = _norm(alias).strip()
+            if not text:
+                continue
+            score = _score(text, q)
+            if score > best["score"] or (score == best["score"] and best["source"] == "alias" and text < best["text"]):
+                best = {"product": product, "score": score, "source": "alias", "text": text}
+        if best["score"] > 0:
+            matches.append(best)
+    matches.sort(key=lambda m: (-m["score"], m["source"] == "alias",
+                               len(_norm(m["product"].get("name", ""))),
+                               _norm(m["product"].get("name", "")), m["product"].get("id", "")))
+    return matches
+
+
+def match_scored(name: str, products: list[dict]) -> list[tuple[int, dict]]:
+    return [(m["score"], m["product"]) for m in match_details(name, products)]
 
 
 def match_candidates(name: str, products: list[dict], limit: int = 5) -> list[dict]:
     return [p for _, p in match_scored(name, products)[:limit]]
 
 
-def tied_alternatives(scored: list[tuple[int, dict]], limit: int = 3) -> list[str]:
-    """Nombres que EMPATAN con el ganador, sin él y sin repetidos.
-
-    Solo el empate es ambigüedad de verdad. Si se devolviera cualquier otra
-    coincidencia, "leche" (exacta, 5) saldría como ambigua por "Chocolate con
-    leche" (3), y Assist recitaría alternativas en cada frase.
-    """
-    if not scored:
+def _top_matches(matches: list[dict]) -> list[dict]:
+    if not matches:
         return []
-    mejor = scored[0][0]
-    fuera = {_norm(scored[0][1].get("name", ""))}
+    best = matches[0]
+    return [m for m in matches if m["score"] == best["score"]
+            and (best["score"] != 5 or m["source"] == best["source"])]
+
+
+def get_product_concept_resolver(products: list[dict]) -> Callable[[dict], dict | None]:
+    """Solo colapsa destinos directos y únicos presentes en este catálogo."""
+    by_id: dict[str, dict] = {}
+    duplicates: set[str] = set()
+    for product in products:
+        product_id = product.get("id")
+        if not isinstance(product_id, str) or not product_id:
+            continue
+        if product_id in by_id:
+            duplicates.add(product_id)
+        else:
+            by_id[product_id] = product
+
+    def concept(product: dict) -> dict | None:
+        if product.get("id") in duplicates:
+            return None
+        if "mirrorOf" not in product:
+            return product
+        target_id = product["mirrorOf"]
+        if not isinstance(target_id, str) or not target_id or target_id == product.get("id"):
+            return None
+        target = by_id.get(target_id)
+        if target is None or target_id in duplicates or "mirrorOf" in target:
+            return None
+        return target
+
+    return concept
+
+
+def select_automatic_match(name: str, matches: list[dict], products: list[dict] | None = None) -> dict | None:
+    """Los alias solo permiten acciones con coincidencia exacta y única."""
+    top = _top_matches(matches)
+    if not top:
+        return None
+    best = top[0]
+    # El destino puede tener otro nombre y no figurar entre las coincidencias.
+    concept = get_product_concept_resolver(products if products is not None else [m["product"] for m in matches])
+    canonical = concept(best["product"])
+    if canonical is None or any(concept(candidate["product"]) is not canonical for candidate in top):
+        return None
+    if best["score"] == 5:
+        return canonical
+    q = _norm(name).strip()
+    if (best["source"] == "canonical" and best["score"] == 4 and len(q) >= 3
+            and best["text"][len(q):len(q) + 1].isspace()
+            and not any(candidate["score"] >= 3 and concept(candidate["product"]) is not canonical for candidate in matches)):
+        return canonical
+    return None
+
+
+def tied_alternatives(matches: list[dict], limit: int = 3) -> list[str]:
+    """Candidatos fuertes empatados, sin decidir por orden ni repetir nombres."""
+    top = _top_matches(matches)
+    if len(top) < 2 or top[0]["score"] < 4:
+        return []
+    fuera: set[str] = set()
     out: list[str] = []
-    for sc, p in scored[1:]:
-        if sc != mejor:
-            break                       # ya vienen ordenados: el resto puntúa menos
-        n = p.get("name", "")
+    for match in top:
+        n = match["product"].get("name", "")
         if _norm(n) in fuera:
             continue                    # mismo nombre en otra sección (p.ej. súper y panadería)
         fuera.add(_norm(n))
@@ -164,11 +228,9 @@ def resolve(name: str, snapshot: dict | None, catalog: dict) -> dict[str, Any]:
     """Devuelve {product, type_id, store_id}. store_id None → va a inbox."""
     snapshot = snapshot or {}
     products = list(catalog.get("products", [])) + list(snapshot.get("customProducts", []))
-    puntuados = match_scored(name, products)
-    product = puntuados[0][1] if puntuados else None
-    # Solo los que EMPATAN con el ganador: esos sí son duda real. El servicio los
-    # devuelve para que Assist los diga y el usuario elija sin ir a la app.
-    alternativas = tied_alternatives(puntuados)
+    puntuados = match_details(name, products)
+    product = select_automatic_match(name, puntuados, products)
+    alternativas = [] if product else tied_alternatives(puntuados)
 
     cat_type = {c["id"]: c["typeId"] for c in catalog.get("categories", [])}
     stores = {s["id"]: s for s in catalog.get("stores", [])}
@@ -180,23 +242,25 @@ def resolve(name: str, snapshot: dict | None, catalog: dict) -> dict[str, Any]:
 
     store_id: str | None = None
 
-    # Producto exclusivo de una tienda (marca propia): manda sobre el tipo.
+    # Una tienda exclusiva no disponible no permite sustituir el destino.
     exclusive = product.get("storeId") if product else None
-    if exclusive and exclusive in stores and stores[exclusive].get("enabled", True) is not False:
-        return {"product": product, "type_id": type_id, "store_id": exclusive,
+    if exclusive:
+        target = stores.get(exclusive)
+        if type_id and target and target.get("typeId") == type_id and target.get("enabled", True) is not False:
+            store_id = exclusive
+        return {"product": product, "type_id": type_id, "store_id": store_id,
                 "alternatives": alternativas}
 
     if type_id:
+        of_type = [
+            s for s in stores.values()
+            if s.get("typeId") == type_id and s.get("enabled", True) is not False
+        ]
         explicit = default_stores.get(type_id)
-        if explicit and explicit in stores and stores[explicit].get("enabled", True) is not False:
+        if explicit and any(s["id"] == explicit for s in of_type):
             store_id = explicit
-        else:
-            of_type = [
-                s for s in stores.values()
-                if s.get("typeId") == type_id and s.get("enabled", True) is not False
-            ]
-            if len(of_type) == 1:
-                store_id = of_type[0]["id"]
+        elif len(of_type) == 1:
+            store_id = of_type[0]["id"]
 
     return {"product": product, "type_id": type_id, "store_id": store_id,
             "alternatives": alternativas}

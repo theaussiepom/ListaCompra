@@ -197,8 +197,8 @@ def test_alternativas_cuando_empatan_de_verdad():
     ]
     res = routing.resolve("leche", {}, routing.catalog_for(_cat(productos), "en", "GB"))
     # Ninguna es exacta y ambas empiezan por "leche" (4): duda real.
-    assert res["product"]["id"] == "entera"          # gana la más corta
-    assert res["alternatives"] == ["Leche desnatada"]
+    assert res["product"] is None
+    assert res["alternatives"] == ["Leche entera", "Leche desnatada"]
 
 
 def test_las_alternativas_no_repiten_nombre():
@@ -222,15 +222,19 @@ def test_el_pan_generico_existe_en_todos_los_idiomas():
     cat = json.loads(path.read_text(encoding="utf-8"))
     snap = {"lists": {}, "customProducts": [], "customStores": [], "defaultStores": {}}
     for lang, cc, termino, esperado in [
-        ("es", "ES", "pan", "Pan"), ("en", "GB", "bread", "Bread"),
+        ("es", "ES", "pan", "Pan"), ("en", "GB", "bread", "Bread"), ("en", "US", "bread", "Bread"),
         ("fr", "FR", "pain", "Pain"), ("de", "DE", "brot", "Brot"),
         ("pt", "BR", "pão", "Pão"),
     ]:
         res = routing.resolve(termino, snap, routing.catalog_for(cat, lang, cc))
-        assert res["product"] is not None, f"{termino!r} no casa en {lang}"
-        assert res["product"]["name"] == esperado, (
-            f"{lang}: {termino!r} → {res['product']['name']!r}, se esperaba {esperado!r}"
-        )
+        products = routing.catalog_for(cat, lang, cc)["products"]
+        exact = [p for p in products if routing._norm(p["name"]) == routing._norm(termino)]
+        assert exact, f"{termino!r} no existe en {lang}"
+        if len(exact) == 1:
+            assert res["product"]["name"] == esperado
+        else:
+            assert res["product"] is None
+            assert res["alternatives"] == [esperado]
 
 
 def test_el_ejemplo_del_readme_existe_en_todos_los_idiomas():
@@ -246,17 +250,24 @@ def test_el_ejemplo_del_readme_existe_en_todos_los_idiomas():
     cat = json.loads(path.read_text(encoding="utf-8"))
     snap = {"lists": {}, "customProducts": [], "customStores": [], "defaultStores": {}}
     for lang, cc, termino in [("en", "GB", "milk"), ("en", "US", "milk"), ("es", "ES", "leche")]:
-        res = routing.resolve(termino, snap, routing.catalog_for(cat, lang, cc))
-        assert res["product"] is not None, f"{termino!r} no existe en el catálogo {lang}-{cc}"
+        flat = routing.catalog_for(cat, lang, cc)
+        assert routing.match_candidates(termino, flat["products"])
+        res = routing.resolve(termino, snap, flat)
+        if lang == "es":
+            # Hay seis variantes de leche, ninguna canónica sin calificativo.
+            assert res["product"] is None
+            assert len(res["alternatives"]) > 1
+        else:
+            assert res["product"]["name"] == "Milk"
 
 
-def test_catalogo_exportado_tiene_los_seis_idiomas():
+def test_catalogo_exportado_tiene_los_siete_locales():
     path = ROOT / "custom_components" / "tucompra" / "catalog.json"
     if not path.exists():
         return  # no se ha corrido `npm run export:catalog`; en CI sí
     cat = json.loads(path.read_text(encoding="utf-8"))
     assert "locales" in cat, "catalog.json sigue en formato plano (solo español)"
-    for loc in ("es", "en", "us", "fr", "de", "br"):
+    for loc in ("es", "en", "us", "fr", "de", "br", "au"):
         assert loc in cat["locales"], f"falta el catálogo de {loc}"
         assert cat["locales"][loc]["products"], f"{loc} sin productos"
         assert cat["locales"][loc]["stores"], f"{loc} sin tiendas"

@@ -2,7 +2,7 @@
 // Python de la integración de HA. Así el servicio `tucompra.add_item` puede
 // reconocer un producto por nombre y deducir su tienda sin duplicar el catálogo.
 //
-// Se exportan LOS SEIS idiomas, no solo el español: el backend elige uno en
+// Se exportan todos los locales, no solo el español: el backend elige uno en
 // tiempo de ejecución según el idioma de HA, así que tiene que llevarlos todos
 // dentro. Antes solo viajaba el español y por eso la voz solo entendía "papel
 // higiénico" aunque la app estuviese en inglés.
@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { CATEGORIES_SEED } from '../src/lib/data/categories.ts';
 import { LOCALIZED_PRODUCTS, LOCALIZED_STORES } from '../src/lib/data/locales/index.ts';
 import { LOCALES } from '../src/lib/i18n/locale.ts';
+import { exportSeedProducts } from './catalog-product.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(__dirname, '../custom_components/tucompra/catalog.json');
@@ -35,18 +36,12 @@ const catalog = {
     LOCALES.map((loc) => [
       loc,
       {
-        products: LOCALIZED_PRODUCTS[loc].map((p) => ({
-          id: p.id,
-          name: p.name,
-          categoryId: p.categoryId,
-          defaultUnit: p.defaultUnit,
-          // Exclusivo de una tienda (marca propia): el enrutado lo respeta.
-          ...(p.storeId ? { storeId: p.storeId } : {}),
-        })),
+        products: exportSeedProducts(LOCALIZED_PRODUCTS[loc]),
         stores: LOCALIZED_STORES[loc].map((s) => ({
           id: s.id,
           name: s.name,
           typeId: s.typeId,
+          ...(s.order !== undefined ? { order: s.order } : {}),
         })),
       },
     ]),

@@ -19,16 +19,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import STORAGE_KEY, STORAGE_VERSION
-from .routing import INBOX_STORE_ID, catalog_for, load_catalog, resolve
+from .routing import INBOX_STORE_ID, load_catalog, resolve, resolve_locale
+from .catalog_locale import catalog_for_snapshot, pin_catalog_locale, snapshot_for_routing
 
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
-
-
-def _titlecase_es(name: str) -> str:
-    name = name.strip()
-    return name[:1].upper() + name[1:].lower() if name else name
 
 
 def _ensure_inbox_store(snapshot: dict) -> None:
@@ -53,7 +49,7 @@ class TuCompraStore:
         self._hass = hass
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self._data: dict[str, Any] = {"shares": {}}
-        # Catálogo de los 6 idiomas; se aplana al de HA en cada resolución.
+        # Catálogo de los 6 idiomas; cada share conserva su identidad.
         self.catalog = load_catalog(Path(__file__).parent / "catalog.json")
 
     async def async_load(self) -> dict[str, Any]:
@@ -116,9 +112,26 @@ class TuCompraStore:
         share = self.shares.get(share_id)
         return share.get("snapshot") if share else None
 
+    async def async_get_snapshot(self, share_id: str, legacy_locale: str | None = None) -> Any:
+        share = self.shares.get(share_id)
+        if not share:
+            return None
+        cfg = self._hass.config
+        snapshot = pin_catalog_locale(
+            share.get("snapshot"), self.catalog, resolve_locale(cfg.language, cfg.country), legacy_locale,
+        )
+        if snapshot != share.get("snapshot"):
+            share["snapshot"] = snapshot
+            await self._async_save()
+        return snapshot
+
     def updated_at(self, share_id: str) -> int:
         share = self.shares.get(share_id)
-        return share.get("updatedAt", 0) if share else 0
+        if not share:
+            return 0
+        snapshot = share.get("snapshot") or {}
+        # Las versiones antiguas de voz solo actualizaban el timestamp interno.
+        return max(share.get("updatedAt", 0), snapshot.get("updatedAt", 0))
 
     async def async_set_snapshot(
         self, share_id: str, snapshot: Any, updated_at: int | None
@@ -128,9 +141,24 @@ class TuCompraStore:
         share = self.shares.get(share_id)
         if not share:
             return False
-        if updated_at is not None and updated_at < share.get("updatedAt", 0):
+        if updated_at is not None and updated_at < self.updated_at(share_id):
             return True
-        share["snapshot"] = snapshot
+        cfg = self._hass.config
+        previous = share.get("snapshot")
+        if previous:
+            pinned = pin_catalog_locale(previous, self.catalog, resolve_locale(cfg.language, cfg.country))
+            snapshot = {**(snapshot or {}), "catalogLocale": pinned["catalogLocale"]}
+            if "customCategories" not in snapshot:
+                seed_ids = {s["id"] for data in self.catalog.get("locales", {}).values() for s in data.get("stores", [])}
+                incoming = {s["id"]: s for s in snapshot.get("customStores", [])}
+                for old in previous.get("customStores", []):
+                    if old["id"] in seed_ids:
+                        incoming[old["id"]] = {**old, **incoming.get(old["id"], {})}
+                snapshot["customStores"] = list(incoming.values())
+            for key in ("usage", "productIcons", "retainedProducts", "customCategories"):
+                if key not in snapshot and key in previous:
+                    snapshot[key] = previous[key]
+        share["snapshot"] = pin_catalog_locale(snapshot, self.catalog, resolve_locale(cfg.language, cfg.country))
         share["updatedAt"] = updated_at or _now_ms()
         await self._async_save()
         return True
@@ -204,19 +232,9 @@ class TuCompraStore:
         if not share:
             return {"ok": False, "error": "No hay ninguna lista disponible todavía."}
 
-        snap = share.get("snapshot") or {
-            "lists": {}, "customProducts": [], "customStores": [],
-            "defaultStores": {}, "updatedAt": 0,
-        }
-        # El catálogo del idioma de HA: el mismo que el frontend ha sembrado, por
-        # lo que el producto que elijamos existe en la app del usuario.
-        cfg = self._hass.config
-        res = resolve(
-            name,
-            snap,
-            catalog_for(self.catalog, cfg.language, cfg.country),
-        )
-        now = _now_ms()
+        snap = await self.async_get_snapshot(share["id"])
+        res = resolve(name, snapshot_for_routing(snap, self.catalog), catalog_for_snapshot(self.catalog, snap))
+        now = max(_now_ms(), self.updated_at(share["id"]) + 1)
 
         product = res["product"]
         store_id = res["store_id"]
@@ -233,8 +251,8 @@ class TuCompraStore:
             snap.setdefault("customProducts", []).append(
                 {
                     "id": product_id,
-                    "name": _titlecase_es(name),
-                    "categoryId": "otros-otros",
+                    "name": name.strip(),
+                    "categoryId": "otr-otros",
                     "icon": {"kind": "emoji", "value": "🏷️"},
                     "defaultUnit": unit or "unidad",
                 }
@@ -255,6 +273,7 @@ class TuCompraStore:
         )
         lst["updatedAt"] = now
         snap["updatedAt"] = now
+        share["updatedAt"] = now
         share["snapshot"] = snap
         await self._async_save()
 
@@ -269,7 +288,7 @@ class TuCompraStore:
             # Nombre REAL del producto que casó, que puede no ser lo que se dijo
             # ("pan" → "Pan integral"). Se devuelve para que el intent_script lo
             # diga en voz alta y el usuario se entere en el momento de si acertó.
-            "product_name": product["name"] if product else _titlecase_es(name),
+            "product_name": product["name"] if product else name.strip(),
             # Otros que también casaban, del más al menos probable. Assist no
             # puede repreguntar y actuar sobre la respuesta (los intents propios
             # no hacen diálogo de varios turnos), pero sí puede nombrarlos.

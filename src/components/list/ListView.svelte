@@ -9,7 +9,8 @@
   import { app } from '$lib/stores/app.svelte';
   import { base } from '$lib/base';
   import { t } from '$lib/i18n/ui.svelte';
-  import { norm, rankMatches } from '$lib/search';
+  import { rankMatches, selectAutomaticMatch } from '$lib/search';
+  import { createListComparators } from '$lib/listSorting';
   import type { Product, Unit } from '$lib/types';
   import MenuButton from '../ui/MenuButton.svelte';
   import LoyaltyCard from '../loyalty/LoyaltyCard.svelte';
@@ -37,22 +38,11 @@
   // Producto que se está editando desde su fila de la lista (✏️).
   let editingProduct = $state<Product | null>(null);
 
-  // Cuántos productos custom hay disponibles en esta tienda (para el enlace).
-  // Todos los de esta tienda: desde ahí se le pone imagen a cualquiera, no solo
-  // a los escaneados.
-  const myProductCount = $derived(productsForType.length);
-
   const INBOX_ID = 'inbox';
 
   const UNITS: Unit[] = ['unidad', 'kg', 'g', 'l', 'ml', 'paquete', 'docena', 'caja'];
 
-  // Comparador alfabético en español que deja "Otros" siempre al final.
-  const byName = (a: { name: string }, b: { name: string }) => {
-    const aOtros = /^otros$/i.test(a.name.trim());
-    const bOtros = /^otros$/i.test(b.name.trim());
-    if (aOtros !== bOtros) return aOtros ? 1 : -1;
-    return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
-  };
+  const sorting = $derived(createListComparators(app.state.locale));
 
   // Cuántos productos "habituales" mostramos cuando no hay búsqueda.
   const HABITUALES_LIMIT = 20;
@@ -68,7 +58,7 @@
       ? app.state.categories
           .filter((c) => c.typeId === store.typeId)
           .slice()
-          .sort(byName)
+          .sort(sorting.byCategory)
       : [],
   );
 
@@ -82,6 +72,11 @@
     );
   });
 
+  // Cuántos productos custom hay disponibles en esta tienda (para el enlace).
+  // Todos los de esta tienda: desde ahí se le pone imagen a cualquiera, no solo
+  // a los escaneados.
+  const myProductCount = $derived(productsForType.length);
+
   // Sugerencias bajo el buscador. Tres modos:
   //  - Con texto: busca en todo el catálogo del tipo de tienda (incluso si
   //    hay categoría activa, busca dentro de ella).
@@ -94,8 +89,7 @@
     if (activeCat !== 'all') pool = pool.filter((p) => p.categoryId === activeCat);
 
     if (query.trim()) {
-      // Búsqueda tolerante, la misma que usa la voz (src/lib/search.ts): así
-      // buscar "pan" aquí y pedirlo por voz dan el mismo producto.
+      // Las sugerencias admiten coincidencias débiles: el usuario elige.
       return rankMatches(pool, query).slice(0, 60);
     }
 
@@ -103,7 +97,7 @@
     const habituales = pool
       .map((p) => ({ p, count: app.usageCount(storeId, p.id) }))
       .filter((x) => x.count > 0)
-      .sort((a, b) => b.count - a.count || byName(a.p, b.p))
+      .sort((a, b) => b.count - a.count || sorting.byName(a.p, b.p))
       .slice(0, HABITUALES_LIMIT)
       .map((x) => x.p);
 
@@ -112,7 +106,7 @@
     // Fallback: si hay categoría activa pero el usuario no ha comprado nada
     // ahí todavía, mostramos los primeros 12 alfabéticos para arrancar.
     if (activeCat !== 'all') {
-      return pool.slice().sort(byName).slice(0, HABITUALES_LIMIT);
+      return pool.slice().sort(sorting.byName).slice(0, HABITUALES_LIMIT);
     }
     return [];
   });
@@ -134,11 +128,11 @@
         items: items.slice().sort((a, b) => {
           const pa = app.state.products.find((p) => p.id === a.productId)?.name ?? '';
           const pb = app.state.products.find((p) => p.id === b.productId)?.name ?? '';
-          return pa.localeCompare(pb, 'es', { sensitivity: 'base' });
+          return sorting.compareNames(pa, pb);
         }),
       }))
       .sort((a, b) =>
-        (a.category?.name ?? '~').localeCompare(b.category?.name ?? '~', 'es', { sensitivity: 'base' }),
+        sorting.byCategory(a.category, b.category),
       );
   });
 
@@ -152,15 +146,14 @@
     query = '';
   }
 
-  /** Enter: si no hay match, crea producto libre y lo añade. */
+  /** Enter exige confianza; una sugerencia pulsada conserva la elección explícita. */
   function handleQueryKeydown(e: KeyboardEvent) {
     if (e.key !== 'Enter') return;
     e.preventDefault();
     const q = query.trim();
     if (!q || !store) return;
-    const exact = productsForType.find((p) => norm(p.name) === norm(q));
-    if (exact) return addProduct(exact.id);
-    if (filtered.length > 0) return addProduct(filtered[0].id);
+    const matched = selectAutomaticMatch(productsForType, q);
+    if (matched) return addProduct(matched.id);
     const created = app.createFreeProduct(q, store.typeId);
     addProduct(created.id);
   }
@@ -177,9 +170,9 @@
 
   const isInbox = $derived(storeId === INBOX_ID);
 
-  // Tiendas a las que mover (todas menos la actual), "Otros" al final.
+  // Tiendas disponibles para mover, sin incluir la actual.
   const moveTargets = $derived(
-    app.state.stores.filter((s) => s.enabled !== false && s.id !== storeId).slice().sort(byName),
+    app.state.stores.filter((s) => s.enabled !== false && s.id !== storeId).slice().sort(sorting.byName),
   );
 
   // Tienda sugerida para un producto (categoría → tipo → default), o null.

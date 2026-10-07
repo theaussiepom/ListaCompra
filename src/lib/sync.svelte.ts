@@ -11,23 +11,10 @@
 // modo local puro (LocalStorage) y la sync queda deshabilitada.
 
 import { app } from './stores/app.svelte';
-import type { ShoppingList, Product, Store } from './types';
-import { LOCALIZED_STORES } from './data/locales';
-import { LOCALES } from './i18n/locale';
-
-// IDs de tienda de todos los locales: distingue seed (de cualquier idioma) de
-// tienda custom del usuario, para no sincronizar el seed como si fuera custom.
-const ALL_SEED_STORE_IDS = new Set(
-  LOCALES.flatMap((l) => LOCALIZED_STORES[l].map((s) => s.id)),
-);
-
-interface SyncSnapshot {
-  lists: Record<string, ShoppingList>;
-  customProducts: Product[];
-  customStores: Store[];
-  defaultStores?: Record<string, string>;
-  updatedAt: number;
-}
+import { applySnapshot as mergeSnapshot, buildSnapshot as snapshotFromState, type SyncSnapshot } from './catalog-locale';
+import { createInitialState, loadShareState, saveShareState } from './storage';
+import { acknowledgeChanges, hasPendingChanges, pendingAtSend } from './local-sync';
+import { DEFAULT_LOCALE } from './i18n/locale';
 
 export interface ShareInfo {
   id: string;
@@ -52,11 +39,18 @@ let hassUrl = '';
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let lastAppliedAt = 0;
+let hasAppliedSnapshot = false;
+let sessionVersion = 0;
+let sessionShare = '';
+let activeCycle: { session: number; promise: Promise<void> } | null = null;
+let activePush: { session: number; promise: Promise<boolean> } | null = null;
+let lastPushedAt = 0;
 
 export const syncStatus = $state({
   inHA: false, // ¿estamos incrustados en el panel de HA (hay token)?
   connected: false, // ¿última operación de red OK?
-  enabled: false, // ¿sync activa (polling en marcha)?
+  enabled: false, // Transporte activo, incluso mientras reintenta.
+  authoritative: false, // Solo una lectura válida habilita los envíos.
   user: null as HAUser | null,
   isAdmin: false,
   shares: [] as ShareInfo[],
@@ -137,40 +131,17 @@ async function api<T = any>(
 // ─── Snapshot (mismo modelo que la versión Supabase) ────────────────────
 
 function buildSnapshot(): SyncSnapshot {
-  const { lists, products, stores } = app.state;
-  return {
-    lists,
-    customProducts: products.filter((p) => p.id.startsWith('custom-')),
-    customStores: stores.filter((s) => !ALL_SEED_STORE_IDS.has(s.id) || s.edited),
-    defaultStores: app.state.defaultStores,
-    updatedAt: Date.now(),
-  };
+  lastPushedAt = Math.max(Date.now(), lastAppliedAt + 1, lastPushedAt + 1);
+  return snapshotFromState(app.state, lastPushedAt);
 }
 
 function applySnapshot(snap: SyncSnapshot): void {
-  // Merge de listas lista a lista: gana la versión más reciente por storeId.
-  const remoteLists = snap.lists ?? {};
-  const merged: Record<string, ShoppingList> = { ...app.state.lists };
-  for (const [id, remoteList] of Object.entries(remoteLists)) {
-    const local = merged[id];
-    if (!local || remoteList.updatedAt > local.updatedAt) merged[id] = remoteList;
-  }
-  app.state.lists = merged;
-
-  const seedProducts = app.state.products.filter((p) => !p.id.startsWith('custom-'));
-  app.state.products = [...seedProducts, ...(snap.customProducts ?? [])];
-
-  const localUntouched = app.state.stores.filter(
-    (s) => ALL_SEED_STORE_IDS.has(s.id) && !s.edited,
-  );
-  app.state.stores = [...localUntouched, ...(snap.customStores ?? [])];
-
-  if (snap.defaultStores) app.state.defaultStores = snap.defaultStores;
-
+  app.state = mergeSnapshot(app.state, snap, !hasAppliedSnapshot && snap.updatedAt === 0);
   app.persistLocalOnly();
   syncStatus.lastSyncAt = Date.now();
   lastAppliedAt = snap.updatedAt;
-  log(`⬇️ Snapshot aplicado (${Object.keys(remoteLists).length} listas)`);
+  hasAppliedSnapshot = true;
+  log(`⬇️ Snapshot aplicado (${Object.keys(snap.lists ?? {}).length} listas)`);
 }
 
 // ─── Ciclo de vida ──────────────────────────────────────────────────────
@@ -206,6 +177,11 @@ export async function hydrateAuth(): Promise<void> {
         : (syncStatus.shares.find((s) => s.id.startsWith('personal:'))?.id
           ?? syncStatus.shares[0]?.id ?? '');
     }
+    if (saved && saved !== active) {
+      saveShareState(saved, app.state);
+      const { profile, locale } = app.state;
+      app.state = { ...(loadShareState(active) ?? createInitialState()), profile, locale };
+    }
     syncStatus.activeShareId = active;
     try { localStorage.setItem(ACTIVE_SHARE_KEY, active); } catch {}
 
@@ -226,86 +202,159 @@ export async function refreshShares(): Promise<void> {
   }
 }
 
+function isCurrentSession(session: number): boolean {
+  return session === sessionVersion && syncStatus.enabled && sessionShare === syncStatus.activeShareId;
+}
+
 export async function startSync(): Promise<void> {
   if (!syncStatus.inHA || !syncStatus.activeShareId) return;
+  const session = sessionVersion + 1;
+  await stopSync();
+  if (session !== sessionVersion) return;
+  sessionShare = syncStatus.activeShareId;
+  hasAppliedSnapshot = false;
+  lastAppliedAt = 0;
   syncStatus.lastError = '';
-  await pullOnce();
-  await pushNow(); // por si el local es más reciente que el remoto
-
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(() => { pullOnce().catch(() => {}); }, POLL_MS);
-  // Pull también al volver a la pestaña.
+  syncStatus.enabled = true;
+  pollTimer = setInterval(() => synchronize(session), POLL_MS);
   if (typeof window !== 'undefined') {
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
   }
-  syncStatus.enabled = true;
-  log(`✅ Sync activa (share: ${syncStatus.activeShareId}).`);
+  await synchronize(session);
 }
 
-function onFocus() {
-  if (document.visibilityState !== 'hidden') pullOnce().catch(() => {});
+function synchronize(session: number): Promise<void> {
+  if (!isCurrentSession(session)) return Promise.resolve();
+  if (activeCycle?.session === session) return activeCycle.promise;
+  const promise = (async () => {
+    const needsInitialPush = !syncStatus.authoritative;
+    if (!await pullOnce(session) || !isCurrentSession(session)) return;
+    syncStatus.authoritative = true;
+    if (needsInitialPush || hasPendingChanges(app.state)) await pushNow();
+  })().finally(() => {
+    if (activeCycle?.session === session) activeCycle = null;
+  });
+  activeCycle = { session, promise };
+  return promise;
+}
+
+function onFocus(): Promise<void> | undefined {
+  if (document.visibilityState !== 'hidden') return synchronize(sessionVersion);
 }
 
 export async function stopSync(): Promise<void> {
+  sessionVersion++;
+  syncStatus.authoritative = false;
+  syncStatus.enabled = false;
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   if (typeof window !== 'undefined') {
     window.removeEventListener('focus', onFocus);
     document.removeEventListener('visibilitychange', onFocus);
   }
-  syncStatus.enabled = false;
+  if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
   log('Sync parada.');
 }
 
-async function pullOnce(): Promise<void> {
-  if (!syncStatus.activeShareId) return;
+async function pullOnce(session: number): Promise<boolean> {
+  const shareId = sessionShare;
+  if (!isCurrentSession(session)) return false;
   try {
     const data = await api<{ snapshot: SyncSnapshot | null; updatedAt: number }>(
-      `/api/tucompra/state?share=${encodeURIComponent(syncStatus.activeShareId)}`,
+      `/api/tucompra/state?share=${encodeURIComponent(shareId)}${app.state.catalogLocale ? `&legacyLocale=${app.state.catalogLocale}` : ''}`,
     );
-    if (!data.snapshot) { log('Sin snapshot remoto aún.'); return; }
-    const localUpdatedAt = Math.max(
-      ...Object.values(app.state.lists).map((l) => l.updatedAt), 0,
-    );
-    if (data.snapshot.updatedAt > Math.max(localUpdatedAt, lastAppliedAt)) {
+    if (!isCurrentSession(session)) return false;
+    if (!data.snapshot) { log('Sin snapshot remoto aún.'); return false; }
+    if (data.snapshot.catalogLocale !== app.state.catalogLocale || !hasAppliedSnapshot || data.snapshot.updatedAt > lastAppliedAt) {
       applySnapshot(data.snapshot);
     }
+    syncStatus.lastError = '';
+    return true;
   } catch (e) {
+    if (!isCurrentSession(session)) return false;
     syncStatus.lastError = (e as Error).message;
     syncStatus.connected = false;
     log(`⚠️ Pull: ${syncStatus.lastError}`);
+    return false;
   }
 }
 
-export async function pushNow(): Promise<void> {
-  if (!syncStatus.inHA || !syncStatus.activeShareId) return;
+export function pushNow(): Promise<boolean> {
+  const session = sessionVersion;
+  if (!syncStatus.inHA || !isCurrentSession(session) || !syncStatus.authoritative) return Promise.resolve(false);
+  const previous = activePush?.session === session ? activePush.promise : null;
+  const promise = (previous ? previous.then(() => performPush(session)) : performPush(session)).finally(() => {
+    if (activePush?.promise === promise) activePush = null;
+  });
+  activePush = { session, promise };
+  return promise;
+}
+
+async function performPush(session: number): Promise<boolean> {
+  const shareId = sessionShare;
+  if (!isCurrentSession(session) || !syncStatus.authoritative) return false;
   try {
+    const sent = pendingAtSend(app.state);
     const snap = buildSnapshot();
-    await api(`/api/tucompra/state?share=${encodeURIComponent(syncStatus.activeShareId)}`, {
+    const result = await api<{ ok: boolean; updatedAt: number }>(`/api/tucompra/state?share=${encodeURIComponent(shareId)}`, {
       method: 'POST',
       body: JSON.stringify({ snapshot: snap, updatedAt: snap.updatedAt }),
     });
+    if (!isCurrentSession(session)) return false;
+    if (!result.ok || result.updatedAt !== snap.updatedAt) {
+      syncStatus.authoritative = false;
+      return false;
+    }
+    lastAppliedAt = Math.max(lastAppliedAt, result.updatedAt);
+    acknowledgeChanges(app.state, sent);
+    app.persistLocalOnly();
     syncStatus.lastSyncAt = Date.now();
+    return true;
   } catch (e) {
+    if (!isCurrentSession(session)) return false;
+    syncStatus.authoritative = false;
     syncStatus.lastError = (e as Error).message;
     syncStatus.connected = false;
     log(`⚠️ Push: ${syncStatus.lastError}`);
+    return false;
   }
 }
 
 /** Llamado por app.persist() en cada mutación. Debounce 2s. */
 export function schedulePush(): void {
-  if (!syncStatus.enabled) return;
+  const session = sessionVersion;
+  if (!isCurrentSession(session) || !syncStatus.authoritative) return;
   if (pushTimer) clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => { pushNow().catch(() => {}); }, 2000);
+  pushTimer = setTimeout(() => {
+    pushTimer = null;
+    if (isCurrentSession(session)) pushNow().catch(() => {});
+  }, 2000);
 }
 
 export async function switchShare(shareId: string): Promise<void> {
-  await stopSync();
-  syncStatus.activeShareId = shareId;
-  try { localStorage.setItem(ACTIVE_SHARE_KEY, shareId); } catch {}
-  lastAppliedAt = 0;
-  await startSync();
+  const previousShare = syncStatus.activeShareId;
+  const previousSession = sessionVersion;
+  if (shareId === previousShare || !await pushNow()) return;
+  try {
+    const data = await api<{ snapshot: SyncSnapshot | null }>(
+      `/api/tucompra/state?share=${encodeURIComponent(shareId)}`,
+    );
+    if (!data.snapshot || !isCurrentSession(previousSession) || syncStatus.activeShareId !== previousShare) return;
+    const stoppedSession = previousSession + 1;
+    await stopSync();
+    if (sessionVersion !== stoppedSession || syncStatus.activeShareId !== previousShare) return;
+    saveShareState(previousShare, app.state);
+    const { profile, locale } = app.state;
+    app.state = { ...(loadShareState(shareId) ?? createInitialState()), profile, locale };
+    syncStatus.activeShareId = shareId;
+    hasAppliedSnapshot = false;
+    applySnapshot(data.snapshot);
+    try { localStorage.setItem(ACTIVE_SHARE_KEY, shareId); } catch {}
+    await startSync();
+  } catch (e) {
+    syncStatus.lastError = (e as Error).message;
+    log(`⚠️ Share: ${syncStatus.lastError}`);
+  }
 }
 
 // ─── Gestión de shares (solo admin) ─────────────────────────────────────
@@ -335,11 +384,13 @@ export async function updateShare(
 }
 
 export async function deleteShare(id: string): Promise<void> {
-  await api(`/api/tucompra/shares/${encodeURIComponent(id)}`, { method: 'DELETE' });
   if (syncStatus.activeShareId === id) {
-    const personal = syncStatus.shares.find((s) => s.id.startsWith('personal:'));
-    if (personal) await switchShare(personal.id);
+    const personal = syncStatus.shares.find((s) => s.id.startsWith('personal:') && s.id !== id);
+    if (!personal) return;
+    await switchShare(personal.id);
+    if (syncStatus.activeShareId === id) return;
   }
+  await api(`/api/tucompra/shares/${encodeURIComponent(id)}`, { method: 'DELETE' });
   await refreshShares();
 }
 
@@ -365,7 +416,9 @@ export interface LookupResult {
 export async function lookupBarcode(barcode: string): Promise<LookupResult> {
   if (!syncStatus.inHA) return { enabled: false };
   try {
-    return await api<LookupResult>(`/api/tucompra/lookup?barcode=${encodeURIComponent(barcode)}`);
+    const query = new URLSearchParams({ barcode, locale: app.state.catalogLocale ?? app.state.locale ?? DEFAULT_LOCALE });
+    if (syncStatus.activeShareId) query.set('share', syncStatus.activeShareId);
+    return await api<LookupResult>(`/api/tucompra/lookup?${query}`);
   } catch (e) {
     log(`⚠️ Lookup: ${(e as Error).message}`);
     return { enabled: true, found: false, error: 'network' };

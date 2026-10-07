@@ -1,16 +1,8 @@
 <script lang="ts">
   import { t } from '$lib/i18n/ui.svelte';
-  // Escáner de códigos con la cámara. Dos motores:
-  //  - Chrome/Edge: BarcodeDetector nativo (rápido, ~30 ms por lectura).
-  //  - Safari/iOS y Firefox: no existe esa API → zxing-wasm DIRECTAMENTE.
-  //
-  // Antes usábamos el polyfill 'barcode-detector', pero envuelve los fallos en
-  // un "Barcode detection service unavailable" que oculta la causa real. Al
-  // llamar a zxing sin intermediarios podemos instanciar el módulo a propósito
-  // (getZXingModule) y enseñar el error de verdad si algo va mal.
-  //
-  // El .wasm se empaqueta con el panel y lo sirve tu HA: sin peticiones a
-  // terceros y funciona sin conexión.
+  // El WASM se sirve desde HA, sin CDN ni peticiones a terceros.
+  import { BarcodeEngineError, createBarcodeEngine, createBarcodeFilter } from '$lib/barcode';
+  import type { BarcodeReader, NativeBarcodeDetector } from '$lib/barcode';
 
   import { onDestroy, untrack } from 'svelte';
   import type { LoyaltyFormat } from '$lib/types';
@@ -22,20 +14,10 @@
     feedback?: string;
   } = $props();
 
-  type Hit = { value: string; format: LoyaltyFormat };
-
-  const hasNative = typeof window !== 'undefined' && 'BarcodeDetector' in window;
-
-  // Nombres de formato de cada motor → los nuestros.
-  const NATIVE_FMT: Record<string, LoyaltyFormat> = {
-    qr_code: 'qr', ean_13: 'ean13', ean_8: 'ean8',
-    code_128: 'code128', code_39: 'code39', upc_a: 'upca',
-  };
   const ZXING_FMT: Record<string, LoyaltyFormat> = {
     QRCode: 'qr', 'EAN-13': 'ean13', 'EAN-8': 'ean8',
     Code128: 'code128', Code39: 'code39', 'UPC-A': 'upca',
   };
-  const NATIVE_LIST = Object.keys(NATIVE_FMT);
   const ZXING_LIST = Object.keys(ZXING_FMT);
 
   let videoEl: HTMLVideoElement | null = $state(null);
@@ -45,6 +27,7 @@
 
   // Diagnóstico
   let engine = $state('');
+  let engineReason = $state('');
   let videoRes = $state('');
   let facing = $state('');
   let capsList = $state('');
@@ -71,20 +54,17 @@
   let track: MediaStreamTrack | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let stopped = false;
-  let readFrame: (() => Promise<Hit[]>) | null = null;
+  let readFrame: BarcodeReader | null = null;
+  let session = 0;
 
-  // Anti-falsos positivos y anti-repetición.
-  let lastSeen = '';
-  let lastAccepted = '';
-  let lastAcceptedAt = 0;
-  const COOLDOWN_MS = 2500;
+  const acceptHit = createBarcodeFilter();
 
   let canvasEl: HTMLCanvasElement | null = null;
   let ctx: CanvasRenderingContext2D | null = null;
 
   /** Abre la cámara: la elegida a mano si la hay, si no la trasera. Con `ideal`
    *  el navegador puede dar la frontal, así que primero se exige. */
-  async function openCamera(): Promise<MediaStream> {
+  async function openCamera(isActive: () => boolean): Promise<MediaStream> {
     const hi = { width: { ideal: 1920 }, height: { ideal: 1080 } };
     const attempts: MediaStreamConstraints[] = [];
     if (deviceId) attempts.push({ video: { deviceId: { exact: deviceId }, ...hi } });
@@ -96,6 +76,7 @@
     );
     let last: unknown;
     for (const c of attempts) {
+      if (!isActive()) throw new Error('escáner cerrado');
       try { return await navigator.mediaDevices.getUserMedia(c); } catch (e) { last = e; }
     }
     throw last ?? new Error('sin cámara');
@@ -103,9 +84,10 @@
 
   /** Lista las cámaras. Las etiquetas solo llegan con permiso concedido, por eso
    *  se hace DESPUÉS de abrir el stream. */
-  async function listCameras() {
+  async function listCameras(isActive: () => boolean) {
     try {
       const all = await navigator.mediaDevices.enumerateDevices();
+      if (!isActive()) return;
       devices = all.filter((d) => d.kind === 'videoinput');
       const actual = String((track?.getSettings?.() as any)?.deviceId ?? '');
 
@@ -139,32 +121,21 @@
     await start();
   }
 
-  /** Prepara el motor de lectura y devuelve la función que analiza un fotograma. */
-  async function setupEngine(): Promise<() => Promise<Hit[]>> {
-    if (hasNative) {
-      engine = 'nativo';
-      // @ts-expect-error — BarcodeDetector no está en los tipos del DOM.
-      const det = new window.BarcodeDetector({ formats: NATIVE_LIST });
-      return async () => {
-        const codes = await det.detect(videoEl!);
-        return codes
-          .filter((c: any) => c?.rawValue)
-          .map((c: any) => ({ value: String(c.rawValue), format: NATIVE_FMT[c.format] ?? 'code128' }));
-      };
-    }
-
-    engine = 'WASM';
+  async function setupWasm(isActive: () => boolean): Promise<BarcodeReader> {
     const [zx, wasm] = await Promise.all([
       import('zxing-wasm/reader'),
       // Subpath EXPORTADO del paquete (no la ruta interna dist/…).
       import('zxing-wasm/reader/zxing_reader.wasm?url'),
     ]);
+    if (!isActive()) return async () => [];
     const wasmUrl = (wasm as { default: string }).default;
 
     try {
       const r = await fetch(wasmUrl, { method: 'HEAD' });
+      if (!isActive()) return async () => [];
       wasmInfo = `${r.status} ${r.headers.get('content-type') ?? '(sin tipo)'}`;
     } catch (e) {
+      if (!isActive()) return async () => [];
       wasmInfo = `no accesible: ${String((e as Error)?.message ?? e).slice(0, 60)}`;
     }
 
@@ -177,7 +148,7 @@
     await zx.getZXingModule();
 
     return async () => {
-      if (!videoEl?.videoWidth) return [];
+      if (!isActive() || !videoEl?.videoWidth) return [];
       if (!canvasEl) {
         canvasEl = document.createElement('canvas');
         ctx = canvasEl.getContext('2d', { willReadFrequently: true });
@@ -198,15 +169,25 @@
   }
 
   async function start() {
-    if (!videoEl) return;
+    if (!videoEl || stopped) return;
+    const run = ++session;
+    const isActive = () => !stopped && run === session;
+    error = '';
+    engine = '';
+    engineReason = '';
+    wasmInfo = '';
     try {
-      stream = await openCamera();
+      const opened = await openCamera(isActive);
+      if (!isActive()) { opened.getTracks().forEach((t) => t.stop()); return; }
+      stream = opened;
       videoEl.srcObject = stream;
       await videoEl.play();
+      if (!isActive()) return;
       videoRes = `${videoEl.videoWidth}×${videoEl.videoHeight}`;
 
       track = stream.getVideoTracks()[0] ?? null;
-      await listCameras();
+      await listCameras(isActive);
+      if (!isActive()) return;
       if (track) {
         const caps = (track.getCapabilities?.() ?? {}) as Record<string, unknown>;
         capsList = Object.keys(caps).join(', ') || t('scan.noCaps');
@@ -220,63 +201,77 @@
         }
       }
     } catch (e) {
+      if (!isActive()) return;
       error = t('scan.errorCamera');
       detectError = String((e as Error)?.message ?? e).slice(0, 140);
+      stop();
       return;
     }
 
+    if (!isActive()) return;
     try {
-      readFrame = await setupEngine();
+      const read = await createBarcodeEngine({
+        native: (window as unknown as { BarcodeDetector?: NativeBarcodeDetector }).BarcodeDetector,
+        source: () => videoEl,
+        loadWasm: () => setupWasm(isActive),
+        onSelection: (selection) => {
+          engine = selection.engine;
+          engineReason = selection.reason;
+        },
+        isActive,
+      });
+      if (!isActive()) return;
+      readFrame = read;
     } catch (e) {
-      // Fallo al preparar el decodificador: se dice, no se oculta.
+      if (!isActive()) return;
       error = t('scan.errorEngine');
       detectError = String((e as Error)?.message ?? e).slice(0, 200);
+      stop();
       return;
     }
 
-    tick();
+    tick(run);
   }
 
-  async function tick() {
-    if (stopped || !readFrame) return;
+  async function tick(run: number) {
+    const isActive = () => !stopped && run === session;
+    if (!isActive() || !readFrame) return;
     try {
       const t0 = performance.now();
       const hits = await readFrame();
+      if (!isActive()) return;
       decodeMs = Math.round(performance.now() - t0);
       ticks++;
       detectError = '';
 
-      const hit = hits[0];
+      const hit = acceptHit(hits[0]);
       if (hit) {
-        const now = Date.now();
-        const onCooldown = hit.value === lastAccepted && now - lastAcceptedAt < COOLDOWN_MS;
-        if (!onCooldown) {
-          if (hit.value === lastSeen) {
-            // Segunda lectura idéntica → la damos por buena.
-            lastAccepted = hit.value;
-            lastAcceptedAt = now;
-            lastSeen = '';
-            onDetected(hit.value, hit.format);
-            if (!continuous) { stop(); return; }
-          } else {
-            lastSeen = hit.value;
-          }
-        }
+        onDetected(hit.value, hit.format);
+        if (!continuous) { stop(); return; }
       }
     } catch (e) {
+      if (!isActive()) return;
       detectError = String((e as Error)?.message ?? e).slice(0, 200);
+      if (e instanceof BarcodeEngineError) {
+        error = t('scan.errorEngine');
+        stop();
+        return;
+      }
     }
-    timer = setTimeout(tick, 120);
+    if (isActive()) timer = setTimeout(() => tick(run), 120);
   }
 
   async function toggleTorch() {
     if (!track) return;
+    const run = session;
     const next = !torchOn;
     try {
       // @ts-expect-error — torch no está en los tipos estándar.
       await track.applyConstraints({ advanced: [{ torch: next }] });
+      if (stopped || run !== session) return;
       torchOn = next;
     } catch (e) {
+      if (stopped || run !== session) return;
       torchOn = false;
       torchAvailable = false;
       detectError = `Linterna no soportada: ${String((e as Error)?.message ?? e).slice(0, 80)}`;
@@ -285,10 +280,18 @@
 
   function stop() {
     stopped = true;
+    session++;
     if (timer) clearTimeout(timer);
+    timer = null;
+    readFrame = null;
     stream?.getTracks().forEach((t) => t.stop());
     stream = null;
     track = null;
+    if (videoEl) videoEl.srcObject = null;
+    torchOn = false;
+    torchAvailable = false;
+    canvasEl = null;
+    ctx = null;
   }
 
   /** Arranque único. Va dentro de `untrack` porque `start()` lee `deviceId` y
@@ -380,6 +383,7 @@
       <ul class="mt-1.5 text-[11px] space-y-0.5 max-h-40 overflow-y-auto [scrollbar-gutter:stable]"
         style="color: var(--fg-muted);">
         <li>{t('scan.diagEngine')}: <strong>{engine || t('scan.diagStarting')}</strong></li>
+        {#if engineReason}<li class="break-all">{engineReason}</li>{/if}
         <li>{t('scan.diagResolution')}: <strong>{videoRes || '—'}</strong> · {t('scan.diagCamera')}: <strong>{facing || '—'}</strong></li>
         <li class="break-all">{t('scan.diagSaved')}: <strong>{savedLabel || '—'}</strong> {deviceId && devices.some((d) => d.deviceId === deviceId) ? '✅' : '⚠️'}</li>
         <li>{t('scan.diagPerRead')}: <strong>{decodeMs} ms</strong> · {t('scan.diagReads')}: <strong>{ticks}</strong></li>

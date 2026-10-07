@@ -1,4 +1,5 @@
 import type { Locale } from '../../i18n/locale';
+import { AU_STORE_TYPES, AU_CATEGORIES } from './au-labels';
 
 // Traducción de los nombres visibles de TipoTienda y de las categorías. Los IDs
 // son universales (y en español, por herencia del seed original); aquí solo
@@ -6,6 +7,7 @@ import type { Locale } from '../../i18n/locale';
 // seed, que está en español.
 
 export const TYPE_NAMES: Partial<Record<Locale, Record<string, string>>> = {
+  au: AU_STORE_TYPES,
   en: {
     supermercado: 'Supermarket', panaderia: 'Bakery', carniceria: 'Butcher',
     pescaderia: 'Fishmonger', farmacia: 'Pharmacy', 'centro-comercial': 'Shopping centre',
@@ -80,6 +82,7 @@ const EN_REST: Record<string, string> = {
 };
 
 export const CATEGORY_NAMES: Partial<Record<Locale, Record<string, string>>> = {
+  au: AU_CATEGORIES,
   en: { ...EN_SUP, ...EN_REST },
   us: {
     ...EN_SUP, ...EN_REST,
