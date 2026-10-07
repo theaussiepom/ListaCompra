@@ -2,7 +2,7 @@
 // Python de la integración de HA. Así el servicio `tucompra.add_item` puede
 // reconocer un producto por nombre y deducir su tienda sin duplicar el catálogo.
 //
-// Se exportan LOS SEIS idiomas, no solo el español: el backend elige uno en
+// Se exportan todos los locales, no solo el español: el backend elige uno en
 // tiempo de ejecución según el idioma de HA, así que tiene que llevarlos todos
 // dentro. Antes solo viajaba el español y por eso la voz solo entendía "papel
 // higiénico" aunque la app estuviese en inglés.

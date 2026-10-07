@@ -44,7 +44,7 @@ jobs:
       - run: npm install
       - run: npm run check
       # Genera catalog.json para que la prueba pueda comprobar que lleva los
-      # seis idiomas y no solo el español.
+      # todos los locales y no solo el español.
       - run: npm run export:catalog
       - name: Tests de frontend
         run: |

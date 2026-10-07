@@ -65,19 +65,29 @@ across several shops. Tu Compra is built around the way people really shop:
 
 ## Key features
 
-- 🌍 **Culture-aware catalog.** Stores and products adapt automatically to your
-  Home Assistant language and country:
+- 🌍 **Culture-aware catalog.** New or empty catalogues use your Home Assistant
+  language and country; populated catalogues keep their existing identity:
   - 🇪🇸 **Spain** — Eroski, Mercadona, Lidl, Día, Carrefour, Alcampo, BM…
   - 🇬🇧 **United Kingdom** — Tesco, Sainsbury's, Asda, Morrisons, Waitrose, Boots…
   - 🇺🇸 **United States** — Walmart, Costco, Target, Kroger, Safeway, Trader Joe's…
   - 🇫🇷 **France** — Carrefour, Leclerc, Auchan, Intermarché, Monoprix…
   - 🇩🇪 **Germany** — Aldi, Lidl, Rewe, Edeka, Kaufland, dm…
   - 🇧🇷 **Brazil** — Pão de Açúcar, Assaí, Atacadão, Extra, Renner…
+  - 🇦🇺 **Australia** — Woolworths, Coles, ALDI, IGA, Butcher, Bakery, Seafood
+    shop, Chemist Warehouse and Bunnings.
   
   Each locale ships genuinely local products (Marmite and Hobnobs for the UK,
   ranch and tater tots for the US, Comté and rillettes for France, Quark and
   Brezel for Germany, farofa and guaraná for Brazil), plus translated section
   names. A **flag** next to the theme switch shows the detected locale.
+  Australian English (`en` + `AU`, or browser `en-AU`) selects the AU catalogue
+  for new/empty shares. Existing UK-backed or explicitly pinned shares retain
+  their IDs and catalogue across reloads. AU includes 1,518 products with curated
+  synonyms and specialist mirrors: store browsing keeps the specialist row,
+  while automatic matching uses its canonical product. The 48 researched
+  optional stores, including Kmart and IKEA, are not seeded. Factory default
+  stores are empty, so an ambiguous supermarket destination goes to Inbox.
+  See [Australian catalogue](docs/au-catalogue.md).
 - 🏪 **Visual store editor.** Add, edit, reorder, hide or delete stores from the
   UI. Upload your own photo for a store, or use the built-in colour badges.
 - 🔍 **Fuzzy search.** Accent-insensitive and typo-tolerant: "platano" finds
@@ -342,8 +352,9 @@ funciona **100% en local dentro de Home Assistant**. Sin nube, sin cuentas y sin
 suscripciones: los datos viven en tu propio HA y tu identidad es simplemente el
 usuario de Home Assistant con el que ya has entrado.
 
-El catálogo se **adapta a la cultura** según el idioma de HA (🇪🇸🇬🇧🇺🇸🇫🇷🇩🇪🇧🇷).
-El seed español es el más completo (~1.300 productos), con fuerte sabor de
+Los catálogos nuevos se **adaptan a la cultura** según el idioma y país de HA
+(🇪🇸🇬🇧🇺🇸🇫🇷🇩🇪🇧🇷🇦🇺); los existentes conservan su identidad.
+El seed español incluye ~1.300 productos, con fuerte sabor de
 **Euskadi / País Vasco** (txuleta, kokotxas, txakoli, idiazabal, perretxikos…) y
 del resto de España (jamón ibérico, fabes, turrón de Jijona…).
 
@@ -375,7 +386,7 @@ del resto de España (jamón ibérico, fabes, turrón de Jijona…).
 ## Características principales
 
 - 🌍 **Multi-cultura**: tiendas y productos según el idioma/país de HA
-  (Eroski/Mercadona, Tesco, Walmart, Carrefour, Aldi, Pão de Açúcar…), con
+  (Eroski/Mercadona, Tesco, Walmart, Carrefour, Aldi, Pão de Açúcar, Woolworths…), con
   secciones traducidas y una **bandera** junto al selector de tema.
 - 🏪 **Editor visual de tiendas**: crear, editar, ocultar, borrar y foto propia.
 - 🔍 **Búsqueda difusa**: sin acentos y tolerante a erratas. Si no existe,
