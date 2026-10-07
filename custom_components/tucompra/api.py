@@ -267,7 +267,7 @@ class StateView(HomeAssistantView):
         return self.json(
             {
                 "share": share_id,
-                "snapshot": store.get_snapshot(share_id),
+                "snapshot": await store.async_get_snapshot(share_id, request.query.get("legacyLocale")),
                 "updatedAt": store.updated_at(share_id),
             }
         )

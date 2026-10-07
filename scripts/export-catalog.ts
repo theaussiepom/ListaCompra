@@ -47,6 +47,7 @@ const catalog = {
           id: s.id,
           name: s.name,
           typeId: s.typeId,
+          ...(s.order !== undefined ? { order: s.order } : {}),
         })),
       },
     ]),
