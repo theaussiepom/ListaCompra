@@ -13,7 +13,7 @@
 import { app } from './stores/app.svelte';
 import type { ShoppingList, Product, Store } from './types';
 import { LOCALIZED_STORES } from './data/locales';
-import { LOCALES } from './i18n/locale';
+import { DEFAULT_LOCALE, LOCALES } from './i18n/locale';
 
 // IDs de tienda de todos los locales: distingue seed (de cualquier idioma) de
 // tienda custom del usuario, para no sincronizar el seed como si fuera custom.
@@ -365,7 +365,9 @@ export interface LookupResult {
 export async function lookupBarcode(barcode: string): Promise<LookupResult> {
   if (!syncStatus.inHA) return { enabled: false };
   try {
-    return await api<LookupResult>(`/api/tucompra/lookup?barcode=${encodeURIComponent(barcode)}`);
+    const query = new URLSearchParams({ barcode, locale: app.state.locale ?? DEFAULT_LOCALE });
+    if (syncStatus.activeShareId) query.set('share', syncStatus.activeShareId);
+    return await api<LookupResult>(`/api/tucompra/lookup?${query}`);
   } catch (e) {
     log(`⚠️ Lookup: ${(e as Error).message}`);
     return { enabled: true, found: false, error: 'network' };
