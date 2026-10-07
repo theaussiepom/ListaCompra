@@ -37,11 +37,6 @@
   // Producto que se está editando desde su fila de la lista (✏️).
   let editingProduct = $state<Product | null>(null);
 
-  // Cuántos productos custom hay disponibles en esta tienda (para el enlace).
-  // Todos los de esta tienda: desde ahí se le pone imagen a cualquiera, no solo
-  // a los escaneados.
-  const myProductCount = $derived(productsForType.length);
-
   const INBOX_ID = 'inbox';
 
   const UNITS: Unit[] = ['unidad', 'kg', 'g', 'l', 'ml', 'paquete', 'docena', 'caja'];
@@ -81,6 +76,11 @@
       (p) => catIds.has(p.categoryId) && (!p.storeId || p.storeId === storeId),
     );
   });
+
+  // Cuántos productos custom hay disponibles en esta tienda (para el enlace).
+  // Todos los de esta tienda: desde ahí se le pone imagen a cualquiera, no solo
+  // a los escaneados.
+  const myProductCount = $derived(productsForType.length);
 
   // Sugerencias bajo el buscador. Tres modos:
   //  - Con texto: busca en todo el catálogo del tipo de tienda (incluso si

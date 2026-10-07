@@ -10,5 +10,5 @@
     "types": ["astro/client"]
   },
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"]
+  "exclude": ["dist", "custom_components/tucompra/panel/app"]
 }
