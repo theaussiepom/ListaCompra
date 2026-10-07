@@ -106,9 +106,20 @@ export interface UserProfile {
   createdAt: number;
 }
 
+export type PendingField = 'customProducts' | 'customStores' | 'customCategories' | 'defaultStores' | 'usage' | 'productIcons';
+
+export interface LocalSyncState {
+  revision: number;
+  fields: Partial<Record<PendingField, number>>;
+  /** Incluye IDs borrados para no resucitar listas aún pendientes de envío. */
+  lists: Record<string, number>;
+}
+
 /** Estado completo persistido en LocalStorage */
 export interface AppState {
   version: 1;
+  /** Control de cambios de este dispositivo, separado de los datos compartidos. */
+  localSync?: LocalSyncState;
   profile?: UserProfile;
   storeTypes: StoreType[];     // catálogo (puede sobreescribir el seed)
   stores: Store[];
@@ -123,10 +134,10 @@ export interface AppState {
    *  (Assist → add_item): un producto implica un tipo de tienda; si hay varias
    *  tiendas de ese tipo, aquí se fija a cuál va. Lo gestiona el administrador. */
   defaultStores?: Record<StoreType['id'], Store['id']>;
-  /** Locale del catálogo (tiendas/productos/idioma de nombres). Se deriva del
-   *  idioma/país de Home Assistant, o del navegador fuera de él. Si el idioma no
-   *  es ninguno de los soportados, DEFAULT_LOCALE ('en'). */
+  /** Idioma de interfaz de este dispositivo; no cambia la identidad del catálogo. */
   locale?: 'es' | 'en' | 'us' | 'fr' | 'de' | 'br';
+  /** Identidad del catálogo compartida y persistente, independiente del idioma de HA. */
+  catalogLocale?: 'es' | 'en' | 'us' | 'fr' | 'de' | 'br';
   /** Icono elegido por el usuario para un producto, incluidos los del seed.
    *
    *  Vive APARTE de `products` porque refreshSeed() reemplaza el seed entero en

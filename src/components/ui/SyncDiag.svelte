@@ -174,7 +174,7 @@
 
         <dt class="text-muted">{t('sync.state')}</dt>
         <dd>
-          {#if syncStatus.enabled && syncStatus.connected}
+          {#if syncStatus.enabled && syncStatus.connected && syncStatus.authoritative}
             <span style="color:#22c55e">🟢 {t('sync.synced')}</span>
           {:else if syncStatus.enabled}
             <span style="color:#0ea5e9">🟡 {t('sync.connecting')}</span>

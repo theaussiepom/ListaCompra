@@ -19,7 +19,7 @@ const ES = {
   'nav.menu': 'Menú de Home Assistant',
   'nav.menuAria': 'Abrir menú lateral',
   'nav.signOutConfirm': '¿Borrar tus datos de este navegador?\n\nSe eliminan listas, productos personalizados y tiendas custom.\nSi la sincronización con Home Assistant está activa, los datos siguen en HA y se recuperan al recargar.\n\nEsta acción no se puede deshacer en este dispositivo.',
-  'nav.catalogHint': 'Catálogo: {label} (según el idioma del navegador)',
+  'nav.catalogHint': 'Catálogo: {label}',
   'nav.haLanguage': 'Idioma de Home Assistant: {lang}',
 
   // --- Alta de perfil ---
@@ -265,7 +265,7 @@ const EN: Dict = {
   'nav.menu': 'Home Assistant menu',
   'nav.menuAria': 'Open the sidebar',
   'nav.signOutConfirm': 'Delete your data from this browser?\n\nLists, custom products and custom shops will be removed.\nIf Home Assistant sync is on, the data stays in HA and comes back on reload.\n\nThis cannot be undone on this device.',
-  'nav.catalogHint': 'Catalog: {label} (from your browser language)',
+  'nav.catalogHint': 'Catalog: {label}',
   'nav.haLanguage': 'Home Assistant language: {lang}',
 
   'setup.title': 'What should we call you?',
@@ -524,7 +524,7 @@ const FR: Dict = {
   'nav.menu': 'Menu de Home Assistant',
   'nav.menuAria': 'Ouvrir le menu latéral',
   'nav.signOutConfirm': 'Effacer vos données de ce navigateur ?\n\nListes, produits personnalisés et magasins créés seront supprimés.\nSi la synchronisation Home Assistant est active, les données restent dans HA et reviennent au rechargement.\n\nC’est irréversible sur cet appareil.',
-  'nav.catalogHint': 'Catalogue : {label} (selon la langue du navigateur)',
+  'nav.catalogHint': 'Catalogue : {label}',
   'nav.haLanguage': 'Langue de Home Assistant : {lang}',
 
   'setup.title': 'Comment vous appelle-t-on ?',
@@ -759,7 +759,7 @@ const DE: Dict = {
   'nav.menu': 'Home-Assistant-Menü',
   'nav.menuAria': 'Seitenleiste öffnen',
   'nav.signOutConfirm': 'Deine Daten aus diesem Browser löschen?\n\nListen, eigene Produkte und eigene Läden werden entfernt.\nWenn die Home-Assistant-Sync an ist, bleiben die Daten in HA und kommen beim Neuladen zurück.\n\nAuf diesem Gerät nicht rückgängig zu machen.',
-  'nav.catalogHint': 'Katalog: {label} (nach der Browsersprache)',
+  'nav.catalogHint': 'Katalog: {label}',
   'nav.haLanguage': 'Home-Assistant-Sprache: {lang}',
 
   'setup.title': 'Wie sollen wir dich nennen?',
@@ -994,7 +994,7 @@ const BR: Dict = {
   'nav.menu': 'Menu do Home Assistant',
   'nav.menuAria': 'Abrir o menu lateral',
   'nav.signOutConfirm': 'Apagar seus dados deste navegador?\n\nListas, produtos personalizados e lojas próprias serão removidos.\nSe a sincronização com o Home Assistant estiver ligada, os dados ficam no HA e voltam ao recarregar.\n\nNão dá para desfazer neste dispositivo.',
-  'nav.catalogHint': 'Catálogo: {label} (conforme o idioma do navegador)',
+  'nav.catalogHint': 'Catálogo: {label}',
   'nav.haLanguage': 'Idioma do Home Assistant: {lang}',
 
   'setup.title': 'Como te chamamos?',
