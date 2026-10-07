@@ -26,11 +26,6 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
-def _titlecase_es(name: str) -> str:
-    name = name.strip()
-    return name[:1].upper() + name[1:].lower() if name else name
-
-
 def _ensure_inbox_store(snapshot: dict) -> None:
     """Añade la tienda 'Por clasificar' al snapshot si aún no existe."""
     stores = snapshot.setdefault("customStores", [])
@@ -233,7 +228,7 @@ class TuCompraStore:
             snap.setdefault("customProducts", []).append(
                 {
                     "id": product_id,
-                    "name": _titlecase_es(name),
+                    "name": name.strip(),
                     "categoryId": "otros-otros",
                     "icon": {"kind": "emoji", "value": "🏷️"},
                     "defaultUnit": unit or "unidad",
@@ -269,7 +264,7 @@ class TuCompraStore:
             # Nombre REAL del producto que casó, que puede no ser lo que se dijo
             # ("pan" → "Pan integral"). Se devuelve para que el intent_script lo
             # diga en voz alta y el usuario se entere en el momento de si acertó.
-            "product_name": product["name"] if product else _titlecase_es(name),
+            "product_name": product["name"] if product else name.strip(),
             # Otros que también casaban, del más al menos probable. Assist no
             # puede repreguntar y actuar sobre la respuesta (los intents propios
             # no hacen diálogo de varios turnos), pero sí puede nombrarlos.

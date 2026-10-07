@@ -9,7 +9,7 @@
   import { app } from '$lib/stores/app.svelte';
   import { base } from '$lib/base';
   import { t } from '$lib/i18n/ui.svelte';
-  import { norm, rankMatches } from '$lib/search';
+  import { rankMatches, selectAutomaticMatch } from '$lib/search';
   import type { Product, Unit } from '$lib/types';
   import MenuButton from '../ui/MenuButton.svelte';
   import LoyaltyCard from '../loyalty/LoyaltyCard.svelte';
@@ -94,8 +94,7 @@
     if (activeCat !== 'all') pool = pool.filter((p) => p.categoryId === activeCat);
 
     if (query.trim()) {
-      // Búsqueda tolerante, la misma que usa la voz (src/lib/search.ts): así
-      // buscar "pan" aquí y pedirlo por voz dan el mismo producto.
+      // Las sugerencias admiten coincidencias débiles: el usuario elige.
       return rankMatches(pool, query).slice(0, 60);
     }
 
@@ -152,15 +151,14 @@
     query = '';
   }
 
-  /** Enter: si no hay match, crea producto libre y lo añade. */
+  /** Enter exige confianza; una sugerencia pulsada conserva la elección explícita. */
   function handleQueryKeydown(e: KeyboardEvent) {
     if (e.key !== 'Enter') return;
     e.preventDefault();
     const q = query.trim();
     if (!q || !store) return;
-    const exact = productsForType.find((p) => norm(p.name) === norm(q));
-    if (exact) return addProduct(exact.id);
-    if (filtered.length > 0) return addProduct(filtered[0].id);
+    const matched = selectAutomaticMatch(productsForType, q);
+    if (matched) return addProduct(matched.id);
     const created = app.createFreeProduct(q, store.typeId);
     addProduct(created.id);
   }
