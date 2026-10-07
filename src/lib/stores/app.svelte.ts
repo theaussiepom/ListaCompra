@@ -5,6 +5,7 @@ import type { AppState, IconRef, ListItem, Product, ShoppingList, Store, UserPro
 import { createInitialState, loadState, saveState } from '../storage';
 import { getLocalizedSeed, LOCALIZED_STORES } from '../data/locales';
 import { DEFAULT_LOCALE, LOCALES, type Locale } from '../i18n/locale';
+import { ensureFallbackCategory } from '../categories';
 
 // IDs de tienda de TODOS los locales: sirve para distinguir "tienda de seed
 // (de cualquier idioma)" de "tienda custom del usuario".
@@ -169,20 +170,7 @@ class AppStore {
    *  que no existe). Lo encajamos bajo la categoría "Otros" del tipo de tienda
    *  donde se está añadiendo, para que aparezca agrupado lógicamente. */
   createFreeProduct(name: string, typeId: string, emoji = '🏷️'): Product {
-    // Busca la categoría "Otros" de ese tipo, o crea una si no existe.
-    let otros = this.state.categories.find(
-      (c) => c.typeId === typeId && c.name.toLowerCase() === 'otros',
-    );
-    if (!otros) {
-      otros = {
-        id: `${typeId}-otros`,
-        name: 'Otros',
-        typeId,
-        icon: { kind: 'emoji', value: '🏷️' },
-        order: 999,
-      };
-      this.state.categories.push(otros);
-    }
+    const otros = ensureFallbackCategory(this.state.categories, typeId);
     const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const product: Product = {
       id,

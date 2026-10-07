@@ -234,7 +234,7 @@ class TuCompraStore:
                 {
                     "id": product_id,
                     "name": _titlecase_es(name),
-                    "categoryId": "otros-otros",
+                    "categoryId": "otr-otros",
                     "icon": {"kind": "emoji", "value": "🏷️"},
                     "defaultUnit": unit or "unidad",
                 }

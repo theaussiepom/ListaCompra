@@ -10,6 +10,7 @@
   import { base } from '$lib/base';
   import { t } from '$lib/i18n/ui.svelte';
   import { norm, rankMatches } from '$lib/search';
+  import { createListComparators } from '$lib/listSorting';
   import type { Product, Unit } from '$lib/types';
   import MenuButton from '../ui/MenuButton.svelte';
   import LoyaltyCard from '../loyalty/LoyaltyCard.svelte';
@@ -46,13 +47,7 @@
 
   const UNITS: Unit[] = ['unidad', 'kg', 'g', 'l', 'ml', 'paquete', 'docena', 'caja'];
 
-  // Comparador alfabético en español que deja "Otros" siempre al final.
-  const byName = (a: { name: string }, b: { name: string }) => {
-    const aOtros = /^otros$/i.test(a.name.trim());
-    const bOtros = /^otros$/i.test(b.name.trim());
-    if (aOtros !== bOtros) return aOtros ? 1 : -1;
-    return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
-  };
+  const sorting = $derived(createListComparators(app.state.locale));
 
   // Cuántos productos "habituales" mostramos cuando no hay búsqueda.
   const HABITUALES_LIMIT = 20;
@@ -68,7 +63,7 @@
       ? app.state.categories
           .filter((c) => c.typeId === store.typeId)
           .slice()
-          .sort(byName)
+          .sort(sorting.byCategory)
       : [],
   );
 
@@ -103,7 +98,7 @@
     const habituales = pool
       .map((p) => ({ p, count: app.usageCount(storeId, p.id) }))
       .filter((x) => x.count > 0)
-      .sort((a, b) => b.count - a.count || byName(a.p, b.p))
+      .sort((a, b) => b.count - a.count || sorting.byName(a.p, b.p))
       .slice(0, HABITUALES_LIMIT)
       .map((x) => x.p);
 
@@ -112,7 +107,7 @@
     // Fallback: si hay categoría activa pero el usuario no ha comprado nada
     // ahí todavía, mostramos los primeros 12 alfabéticos para arrancar.
     if (activeCat !== 'all') {
-      return pool.slice().sort(byName).slice(0, HABITUALES_LIMIT);
+      return pool.slice().sort(sorting.byName).slice(0, HABITUALES_LIMIT);
     }
     return [];
   });
@@ -134,11 +129,11 @@
         items: items.slice().sort((a, b) => {
           const pa = app.state.products.find((p) => p.id === a.productId)?.name ?? '';
           const pb = app.state.products.find((p) => p.id === b.productId)?.name ?? '';
-          return pa.localeCompare(pb, 'es', { sensitivity: 'base' });
+          return sorting.compareNames(pa, pb);
         }),
       }))
       .sort((a, b) =>
-        (a.category?.name ?? '~').localeCompare(b.category?.name ?? '~', 'es', { sensitivity: 'base' }),
+        sorting.byCategory(a.category, b.category),
       );
   });
 
@@ -177,9 +172,9 @@
 
   const isInbox = $derived(storeId === INBOX_ID);
 
-  // Tiendas a las que mover (todas menos la actual), "Otros" al final.
+  // Tiendas disponibles para mover, sin incluir la actual.
   const moveTargets = $derived(
-    app.state.stores.filter((s) => s.enabled !== false && s.id !== storeId).slice().sort(byName),
+    app.state.stores.filter((s) => s.enabled !== false && s.id !== storeId).slice().sort(sorting.byName),
   );
 
   // Tienda sugerida para un producto (categoría → tipo → default), o null.
